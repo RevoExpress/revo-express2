@@ -1,0 +1,1 @@
+ALTER TABLE public.colis ADD COLUMN IF NOT EXISTS prix_colis numeric NOT NULL DEFAULT 0;
