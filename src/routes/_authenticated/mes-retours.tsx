@@ -27,7 +27,7 @@ function MesRetoursPage() {
         .from("colis")
         .select("*")
         .eq("client_id", user.id)
-        .eq("statut", "echec")
+        .or("statut.eq.echec,type_colis.in.(SPL,ECH)")
         .order("date_creation", { ascending: false })
         .then(({ data }) => {
           setColis(data || []);

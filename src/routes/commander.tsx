@@ -41,6 +41,8 @@ function CommanderPage() {
   const [submitting, setSubmitting] = useState(false);
   const [createdColis, setCreatedColis] = useState<any>(null);
   const [typeLivraison, setTypeLivraison] = useState<DeliveryType>("standard");
+  const [typeColis, setTypeColis] = useState<"REV" | "SPL" | "ECH">("REV");
+  const [produitRetour, setProduitRetour] = useState("");
   const [form, setForm] = useState({
     expediteur_nom: "", expediteur_tel: "", expediteur_adresse: "",
     destinataire_nom: "", destinataire_tel: "", destinataire_adresse: "",
@@ -100,8 +102,10 @@ function CommanderPage() {
       prix: estimation.prix,
       prix_colis: parsed.data.prix_colis,
       type_livraison: typeLivraison,
-      statut: "en-attente",
-    }).select().single();
+      type_colis: typeColis,
+      produit_retour: typeColis !== "REV" ? produitRetour.trim() || null : null,
+      statut: "en-preparation",
+    }).select().single(); 
     setSubmitting(false);
     if (error) { toast.error(t("cmd.err.create"), { description: error.message }); return; }
     toast.success(`${t("cmd.ok.toast")} : ${tracking}`);
@@ -197,6 +201,47 @@ function CommanderPage() {
             </Card>
 
             <Card title={t("cmd.details")}>
+              <div>
+                <Label>Type d'envoi</Label>
+                <div className="mt-1 grid grid-cols-3 gap-2">
+                  {([
+                    { v: "REV", label: "Normal" },
+                    { v: "ECH", label: "Échange" },
+                    { v: "SPL", label: "Split" },
+                  ] as const).map((o) => (
+                    <button
+                      key={o.v}
+                      type="button"
+                      onClick={() => setTypeColis(o.v)}
+                      className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                        typeColis === o.v
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-input bg-background text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                {typeColis !== "REV" && (
+                  <div className="mt-3">
+                    <Label htmlFor="produit_retour">
+                      {typeColis === "ECH"
+                        ? "Produit à RÉCUPÉRER chez le client"
+                        : "Produit à RENVOYER au vendeur"}
+                    </Label>
+                    <Input
+                      id="produit_retour"
+                      value={produitRetour}
+                      onChange={(e) => setProduitRetour(e.target.value)}
+                      placeholder={typeColis === "ECH"
+                        ? "Ex : Robe rouge taille M (l'ancien article)"
+                        : "Ex : 1 paire de chaussures (ce qui n'est pas gardé)"}
+                      className="mt-1"
+                    />
+                  </div>
+                )}
+              </div>
               <div>
                 <Label htmlFor="prix_colis">
                   {t("cmd.price")} <span className="text-destructive">*</span>

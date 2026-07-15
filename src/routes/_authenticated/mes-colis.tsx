@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
+import { TrackingBadge } from "@/components/tracking-badge";
 import { STATUTS, COMMUNES } from "@/lib/tarifs";
 import { exportColisToXLSX } from "@/lib/export-csv";
 import {
@@ -366,6 +367,7 @@ function MesColisPage() {
                             <span className="rounded-md bg-info/15 px-2 py-0.5 font-mono text-xs font-bold text-info">
                               {c.tracking}
                             </span>
+                            <TrackingBadge typeColis={c.type_colis} />
                             <button
                               onClick={() => copyTracking(c.tracking)}
                               className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"

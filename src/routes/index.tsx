@@ -1,11 +1,13 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Truck, Clock, Shield, MapPin, Package, RotateCcw, Banknote, Repeat, CalendarClock, HelpCircle, ListChecks } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { ArrowRight, Truck, Clock, Shield, MapPin, Package, RotateCcw, Banknote, Repeat, CalendarClock, HelpCircle, ListChecks, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { FloatingBanner } from "@/components/floating-banner";
 import { useTheme } from "@/hooks/use-theme";
 import { useI18n } from "@/hooks/use-i18n";
+import { useAuth, homeForRole } from "@/hooks/use-auth";
 import logoLight from "@/assets/logo-light.png";
 import logoDark from "@/assets/logo-dark.png";
 
@@ -23,13 +25,29 @@ export const Route = createFileRoute("/")({
 function HomePage() {
   const { t } = useI18n();
   const { theme } = useTheme();
+  const { user, role, loading } = useAuth();
+  const navigate = useNavigate();
 
-
-  // La landing publique est toujours affichée — connecté ou non.
-  // Les utilisateurs accèdent à leur espace via le menu profil dans la nav.
+  // La vitrine publique n'est PAS visible aux comptes connectés (client ou interne).
+  // Dès qu'une session est détectée, on redirige vers l'espace correspondant au rôle.
+  useEffect(() => {
+    if (!loading && user && role) {
+      navigate({ to: homeForRole(role) as "/admin", replace: true });
+    }
+  }, [loading, user, role, navigate]);
 
   // Light theme uses dark-colored logo; dark theme uses light-colored logo
   const heroLogo = theme === "dark" ? logoLight : logoDark;
+
+  // Pendant la vérification de session, et pendant la redirection d'un compte connecté,
+  // on n'affiche jamais la vitrine (évite le flash de la landing publique).
+  if (loading || (user && role)) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col">

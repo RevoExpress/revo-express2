@@ -19,6 +19,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as TrackCodeRouteImport } from './routes/track.$code'
 import { Route as AuthenticatedSuiviLivreursRouteImport } from './routes/_authenticated/suivi-livreurs'
 import { Route as AuthenticatedServiceClientRouteImport } from './routes/_authenticated/service-client'
+import { Route as AuthenticatedProspectionRouteImport } from './routes/_authenticated/prospection'
 import { Route as AuthenticatedProfilRouteImport } from './routes/_authenticated/profil'
 import { Route as AuthenticatedPrintBordereauxRouteImport } from './routes/_authenticated/print-bordereaux'
 import { Route as AuthenticatedOperationsRouteImport } from './routes/_authenticated/operations'
@@ -27,6 +28,7 @@ import { Route as AuthenticatedMesColisRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedLivreurRouteImport } from './routes/_authenticated/livreur'
 import { Route as AuthenticatedFeuilleDeRouteRouteImport } from './routes/_authenticated/feuille-de-route'
 import { Route as AuthenticatedEquipeRouteImport } from './routes/_authenticated/equipe'
+import { Route as AuthenticatedComptesRouteImport } from './routes/_authenticated/comptes'
 import { Route as AuthenticatedCommercialRouteImport } from './routes/_authenticated/commercial'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedColisTrackingRouteImport } from './routes/_authenticated/colis.$tracking'
@@ -82,6 +84,12 @@ const AuthenticatedServiceClientRoute =
     path: '/service-client',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedProspectionRoute =
+  AuthenticatedProspectionRouteImport.update({
+    id: '/prospection',
+    path: '/prospection',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedProfilRoute = AuthenticatedProfilRouteImport.update({
   id: '/profil',
   path: '/profil',
@@ -124,6 +132,11 @@ const AuthenticatedEquipeRoute = AuthenticatedEquipeRouteImport.update({
   path: '/equipe',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedComptesRoute = AuthenticatedComptesRouteImport.update({
+  id: '/comptes',
+  path: '/comptes',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedCommercialRoute = AuthenticatedCommercialRouteImport.update({
   id: '/commercial',
   path: '/commercial',
@@ -150,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/tarifs': typeof TarifsRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/commercial': typeof AuthenticatedCommercialRoute
+  '/comptes': typeof AuthenticatedComptesRoute
   '/equipe': typeof AuthenticatedEquipeRoute
   '/feuille-de-route': typeof AuthenticatedFeuilleDeRouteRoute
   '/livreur': typeof AuthenticatedLivreurRoute
@@ -158,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/operations': typeof AuthenticatedOperationsRoute
   '/print-bordereaux': typeof AuthenticatedPrintBordereauxRoute
   '/profil': typeof AuthenticatedProfilRoute
+  '/prospection': typeof AuthenticatedProspectionRoute
   '/service-client': typeof AuthenticatedServiceClientRoute
   '/suivi-livreurs': typeof AuthenticatedSuiviLivreursRoute
   '/track/$code': typeof TrackCodeRoute
@@ -172,6 +187,7 @@ export interface FileRoutesByTo {
   '/tarifs': typeof TarifsRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/commercial': typeof AuthenticatedCommercialRoute
+  '/comptes': typeof AuthenticatedComptesRoute
   '/equipe': typeof AuthenticatedEquipeRoute
   '/feuille-de-route': typeof AuthenticatedFeuilleDeRouteRoute
   '/livreur': typeof AuthenticatedLivreurRoute
@@ -180,6 +196,7 @@ export interface FileRoutesByTo {
   '/operations': typeof AuthenticatedOperationsRoute
   '/print-bordereaux': typeof AuthenticatedPrintBordereauxRoute
   '/profil': typeof AuthenticatedProfilRoute
+  '/prospection': typeof AuthenticatedProspectionRoute
   '/service-client': typeof AuthenticatedServiceClientRoute
   '/suivi-livreurs': typeof AuthenticatedSuiviLivreursRoute
   '/track/$code': typeof TrackCodeRoute
@@ -196,6 +213,7 @@ export interface FileRoutesById {
   '/tarifs': typeof TarifsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/commercial': typeof AuthenticatedCommercialRoute
+  '/_authenticated/comptes': typeof AuthenticatedComptesRoute
   '/_authenticated/equipe': typeof AuthenticatedEquipeRoute
   '/_authenticated/feuille-de-route': typeof AuthenticatedFeuilleDeRouteRoute
   '/_authenticated/livreur': typeof AuthenticatedLivreurRoute
@@ -204,6 +222,7 @@ export interface FileRoutesById {
   '/_authenticated/operations': typeof AuthenticatedOperationsRoute
   '/_authenticated/print-bordereaux': typeof AuthenticatedPrintBordereauxRoute
   '/_authenticated/profil': typeof AuthenticatedProfilRoute
+  '/_authenticated/prospection': typeof AuthenticatedProspectionRoute
   '/_authenticated/service-client': typeof AuthenticatedServiceClientRoute
   '/_authenticated/suivi-livreurs': typeof AuthenticatedSuiviLivreursRoute
   '/track/$code': typeof TrackCodeRoute
@@ -220,6 +239,7 @@ export interface FileRouteTypes {
     | '/tarifs'
     | '/admin'
     | '/commercial'
+    | '/comptes'
     | '/equipe'
     | '/feuille-de-route'
     | '/livreur'
@@ -228,6 +248,7 @@ export interface FileRouteTypes {
     | '/operations'
     | '/print-bordereaux'
     | '/profil'
+    | '/prospection'
     | '/service-client'
     | '/suivi-livreurs'
     | '/track/$code'
@@ -242,6 +263,7 @@ export interface FileRouteTypes {
     | '/tarifs'
     | '/admin'
     | '/commercial'
+    | '/comptes'
     | '/equipe'
     | '/feuille-de-route'
     | '/livreur'
@@ -250,6 +272,7 @@ export interface FileRouteTypes {
     | '/operations'
     | '/print-bordereaux'
     | '/profil'
+    | '/prospection'
     | '/service-client'
     | '/suivi-livreurs'
     | '/track/$code'
@@ -265,6 +288,7 @@ export interface FileRouteTypes {
     | '/tarifs'
     | '/_authenticated/admin'
     | '/_authenticated/commercial'
+    | '/_authenticated/comptes'
     | '/_authenticated/equipe'
     | '/_authenticated/feuille-de-route'
     | '/_authenticated/livreur'
@@ -273,6 +297,7 @@ export interface FileRouteTypes {
     | '/_authenticated/operations'
     | '/_authenticated/print-bordereaux'
     | '/_authenticated/profil'
+    | '/_authenticated/prospection'
     | '/_authenticated/service-client'
     | '/_authenticated/suivi-livreurs'
     | '/track/$code'
@@ -362,6 +387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedServiceClientRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/prospection': {
+      id: '/_authenticated/prospection'
+      path: '/prospection'
+      fullPath: '/prospection'
+      preLoaderRoute: typeof AuthenticatedProspectionRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/profil': {
       id: '/_authenticated/profil'
       path: '/profil'
@@ -418,6 +450,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEquipeRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/comptes': {
+      id: '/_authenticated/comptes'
+      path: '/comptes'
+      fullPath: '/comptes'
+      preLoaderRoute: typeof AuthenticatedComptesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/commercial': {
       id: '/_authenticated/commercial'
       path: '/commercial'
@@ -445,6 +484,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedCommercialRoute: typeof AuthenticatedCommercialRoute
+  AuthenticatedComptesRoute: typeof AuthenticatedComptesRoute
   AuthenticatedEquipeRoute: typeof AuthenticatedEquipeRoute
   AuthenticatedFeuilleDeRouteRoute: typeof AuthenticatedFeuilleDeRouteRoute
   AuthenticatedLivreurRoute: typeof AuthenticatedLivreurRoute
@@ -453,6 +493,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedOperationsRoute: typeof AuthenticatedOperationsRoute
   AuthenticatedPrintBordereauxRoute: typeof AuthenticatedPrintBordereauxRoute
   AuthenticatedProfilRoute: typeof AuthenticatedProfilRoute
+  AuthenticatedProspectionRoute: typeof AuthenticatedProspectionRoute
   AuthenticatedServiceClientRoute: typeof AuthenticatedServiceClientRoute
   AuthenticatedSuiviLivreursRoute: typeof AuthenticatedSuiviLivreursRoute
   AuthenticatedColisTrackingRoute: typeof AuthenticatedColisTrackingRoute
@@ -461,6 +502,7 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedCommercialRoute: AuthenticatedCommercialRoute,
+  AuthenticatedComptesRoute: AuthenticatedComptesRoute,
   AuthenticatedEquipeRoute: AuthenticatedEquipeRoute,
   AuthenticatedFeuilleDeRouteRoute: AuthenticatedFeuilleDeRouteRoute,
   AuthenticatedLivreurRoute: AuthenticatedLivreurRoute,
@@ -469,6 +511,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedOperationsRoute: AuthenticatedOperationsRoute,
   AuthenticatedPrintBordereauxRoute: AuthenticatedPrintBordereauxRoute,
   AuthenticatedProfilRoute: AuthenticatedProfilRoute,
+  AuthenticatedProspectionRoute: AuthenticatedProspectionRoute,
   AuthenticatedServiceClientRoute: AuthenticatedServiceClientRoute,
   AuthenticatedSuiviLivreursRoute: AuthenticatedSuiviLivreursRoute,
   AuthenticatedColisTrackingRoute: AuthenticatedColisTrackingRoute,
@@ -491,3 +534,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

@@ -2,7 +2,17 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-export type Role = "admin" | "admin_commercial" | "admin_operations" | "admin_service_client" | "client" | "livreur" | "commercial" | "service_client" | null;
+export type Role =
+  | "admin"
+  | "directeur_commercial"
+  | "admin_commercial"
+  | "admin_operations"
+  | "admin_service_client"
+  | "client"
+  | "livreur"
+  | "commercial"
+  | "service_client"
+  | null;
 
 type AuthContextValue = {
   session: Session | null;
@@ -20,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1) Subscribe FIRST
+    // Etape 1 - Subscribe FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_evt, s) => {
       setSession(s);
       if (s?.user) {
@@ -31,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    // 2) Then read current session
+    // Etape 2 - Then read current session
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
       if (s?.user) void fetchRole(s.user.id).finally(() => setLoading(false));
@@ -42,19 +52,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function fetchRole(userId: string) {
+    // Priorité DG > directeurs > agents (via ordre) — on prend le rôle le plus élevé
     const { data, error } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", userId)
-      .order("role", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .eq("user_id", userId);
     if (error) {
       console.error("fetchRole error", error);
       setRole("client");
       return;
     }
-    setRole((data?.role as Role) ?? "client");
+    const roles = (data ?? []).map((r) => r.role as string);
+    // Ordre de priorité
+    const priority = [
+      "admin", "directeur_commercial", "admin_commercial",
+      "admin_operations", "admin_service_client",
+      "commercial", "service_client", "livreur", "client",
+    ];
+    const best = priority.find((p) => roles.includes(p));
+    setRole((best as Role) ?? "client");
   }
 
   async function signOut() {
@@ -87,6 +103,7 @@ export function useAuth() {
 // Where to send a user after login, based on role
 export function homeForRole(role: Role): string {
   if (role === "admin") return "/admin";
+  if (role === "directeur_commercial") return "/commercial";
   if (role === "admin_commercial") return "/commercial";
   if (role === "admin_operations") return "/operations";
   if (role === "admin_service_client") return "/service-client";
@@ -95,3 +112,16 @@ export function homeForRole(role: Role): string {
   if (role === "livreur") return "/livreur";
   return "/mes-colis";
 }
+
+// Libellés lisibles des rôles (pour l'affichage)
+export const ROLE_LABELS: Record<string, string> = {
+  admin: "Directeur Général",
+  directeur_commercial: "Directeur Commercial",
+  admin_commercial: "Admin Commercial",
+  admin_operations: "Directeur des Opérations",
+  admin_service_client: "Admin Service Client",
+  commercial: "Commercial",
+  service_client: "Service Client",
+  livreur: "Livreur",
+  client: "Client",
+};
