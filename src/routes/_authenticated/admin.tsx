@@ -1,6 +1,6 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Package, Download, Check, UserCircle2, LayoutDashboard, Search, UserX, ChevronDown } from "lucide-react";
+import { Loader2, Package, Download, Check, UserCircle2, LayoutDashboard, Search, UserX, ChevronDown, MessageSquare, X } from "lucide-react";
 import { ProPageHeader } from "@/components/pro-page-header";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,7 @@ import { exportColisToXLSX } from "@/lib/export-csv";
 import { TrackingBadge } from "@/components/tracking-badge";
 import { cn } from "@/lib/utils";
 import { AdminStats } from "@/components/admin-stats";
+import { ColisCommentaires } from "@/components/colis-commentaires";
 
 /* Couleur de chaque statut, en dur (hex) — visible partout, tout le temps */
 const STATUT_HEX: Record<string, string> = {
@@ -57,6 +58,8 @@ function AdminPage() {
   const [recherche, setRecherche] = useState("");
   const [filtreStatut, setFiltreStatut] = useState("tous");
   const [menu, setMenu] = useState<MenuState>(null);
+  const [notesColis, setNotesColis] = useState<any | null>(null);
+  const [notesCount, setNotesCount] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (role !== "admin") return;
@@ -78,6 +81,14 @@ function AdminPage() {
   async function refresh() {
     const { data } = await supabase.from("colis").select("*").order("date_creation", { ascending: false }).limit(500);
     setColis(data || []);
+    // Compteur de notes par colis (pastille sur l'icône 💬) — silencieux si indisponible
+    supabase.from("colis_commentaires").select("colis_id")
+      .then(({ data: rows, error }) => {
+        if (error || !rows) return;
+        const m: Record<string, number> = {};
+        rows.forEach((r: any) => { m[r.colis_id] = (m[r.colis_id] ?? 0) + 1; });
+        setNotesCount(m);
+      });
   }
 
   async function updateStatut(id: string, statut: string) {
@@ -202,12 +213,14 @@ function AdminPage() {
                 <th className="px-3 py-3 text-left">Trajet</th>
                 <th className="px-3 py-3 text-left">Livreur</th>
                 <th className="px-3 py-3 text-left">Statut</th>
+                <th className="px-3 py-3 text-center">Notes</th>
                 <th className="px-3 py-3 text-right">Prix</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {colisAffiches.map((c) => {
                 const assigned = !!c.livreur_id;
+                const nNotes = notesCount[c.id] ?? 0;
                 return (
                   <tr key={c.id} className="hover:bg-accent/40">
                     <td className="px-3 py-2 font-mono text-xs">
@@ -250,12 +263,27 @@ function AdminPage() {
                         <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
                       </button>
                     </td>
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        type="button"
+                        onClick={() => setNotesColis(c)}
+                        title="Notes internes"
+                        className="relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        {nNotes > 0 && (
+                          <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-black text-white">
+                            {nNotes}
+                          </span>
+                        )}
+                      </button>
+                    </td>
                     <td className="px-3 py-2 text-right font-bold">{c.prix} DA</td>
                   </tr>
                 );
               })}
               {colisAffiches.length === 0 && (
-                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">
+                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">
                   <Package className="mx-auto mb-2 h-8 w-8" /> Aucun colis trouvé
                 </td></tr>
               )}
@@ -347,6 +375,39 @@ function AdminPage() {
             )}
           </div>
         </>
+      )}
+
+      {/* Fenêtre notes internes (clic sur 💬) */}
+      {notesColis && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-10 backdrop-blur-sm"
+          onClick={() => { setNotesColis(null); void refresh(); }}
+        >
+          <div
+            className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <MessageSquare className="h-5 w-5 shrink-0 text-primary" />
+                <h2 className="shrink-0 font-bold">Notes internes</h2>
+                <span className="truncate rounded-md bg-info/15 px-2 py-0.5 font-mono text-sm font-bold text-info">
+                  {notesColis.tracking}
+                </span>
+              </div>
+              <button
+                onClick={() => { setNotesColis(null); void refresh(); }}
+                aria-label="Fermer"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto p-5">
+              <ColisCommentaires colisId={notesColis.id} />
+            </div>
+          </div>
+        </div>
       )}
 
       <SiteFooter />

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { Bordereau } from "@/components/bordereau";
+import { ColisCommentaires } from "@/components/colis-commentaires";
 import { STATUTS } from "@/lib/tarifs";
 
 export const Route = createFileRoute("/_authenticated/colis/$tracking")({
@@ -16,11 +17,14 @@ export const Route = createFileRoute("/_authenticated/colis/$tracking")({
 
 function ColisDetailsPage() {
   const { tracking } = useParams({ from: "/_authenticated/colis/$tracking" });
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [colis, setColis] = useState<any>(null);
   const [historique, setHistorique] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBordereau, setShowBordereau] = useState(false);
+
+  // Les notes internes sont réservées au staff — jamais visibles côté client.
+  const isStaff = !!role && role !== "client";
 
   useEffect(() => {
     if (!user) return;
@@ -175,6 +179,9 @@ function ColisDetailsPage() {
                 </ol>
               )}
             </InfoCard>
+
+            {/* Notes internes — staff uniquement (les clients ne voient rien) */}
+            {isStaff && <ColisCommentaires colisId={colis.id} />}
           </div>
 
           {/* Pricing */}

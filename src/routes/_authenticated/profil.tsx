@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Loader2, Save, KeyRound, User as UserIcon, Mail, Phone, Store, MapPin, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { COMMUNES } from "@/lib/tarifs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,12 +79,18 @@ function ProfilPage() {
         if (error) {
           toast.error("Impossible de charger le profil");
         } else if (data) {
+          // Si l'ancienne valeur libre correspond (aux accents/majuscules près)
+          // à une commune officielle, on la récupère proprement.
+          const norm = (s: string) =>
+            s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+          const matched =
+            COMMUNES.find((c) => norm(c.name) === norm(data.wilaya ?? ""))?.name ?? "";
           setForm({
             nom: data.nom ?? "",
             telephone: data.telephone ?? "",
             nom_boutique: data.nom_boutique ?? "",
             adresse: data.adresse ?? "",
-            wilaya: data.wilaya ?? "",
+            wilaya: matched,
           });
         }
         setLoading(false);
@@ -182,7 +189,9 @@ function ProfilPage() {
               <UserIcon className="h-5 w-5 text-primary" />
               Informations personnelles
             </CardTitle>
-            <CardDescription>Visible uniquement par vous et l'équipe REV.</CardDescription>
+            <CardDescription>
+              Ces informations servent d'expéditeur sur vos bordereaux.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -238,14 +247,21 @@ function ProfilPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="wilaya">Commune / Wilaya</Label>
-                  <Input
+                  <Label htmlFor="wilaya">Commune (départ de vos colis)</Label>
+                  <select
                     id="wilaya"
                     value={form.wilaya}
                     onChange={(e) => setForm({ ...form, wilaya: e.target.value })}
-                    maxLength={80}
-                    placeholder="Alger Centre, Bab Ezzouar…"
-                  />
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">— Choisir votre commune —</option>
+                    {COMMUNES.map((c) => (
+                      <option key={c.name} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-muted-foreground">
+                    Utilisée comme commune de départ à chaque commande.
+                  </p>
                 </div>
                 <Button type="submit" disabled={saving} className="w-full gap-2">
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Printer, Package, ArrowRight } from "lucide-react";
+import { Loader2, Printer, Package, ArrowRight, User as UserIcon, Phone, MapPin, Pencil, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,7 +30,7 @@ const schema = z.object({
   destinataire_wilaya: z.string().trim().max(100).optional(),
   destinataire_cp: z.string().trim().max(20).optional(),
   description: z.string().trim().max(500).optional(),
-  depart: z.string().min(1, "Choisissez une commune de départ"),
+  depart: z.string().min(1, "Commune de départ manquante — complétez votre profil"),
   arrivee: z.string().min(1, "Choisissez une commune d'arrivée"),
   // Obligatoire mais 0 accepté (colis déjà payé) — la valeur déclarée prend le relais
   prix_colis: z.coerce.number({ invalid_type_error: "Prix du colis requis" }).min(0, "Le prix du colis est obligatoire (0 accepté)").max(10000000),
@@ -45,6 +45,7 @@ function CommanderPage() {
   const [typeColis, setTypeColis] = useState<"REV" | "SPL" | "ECH">("REV");
   const [produitRetour, setProduitRetour] = useState("");
   const [valeurDeclaree, setValeurDeclaree] = useState("");
+  const [profilCharge, setProfilCharge] = useState(false);
   const [form, setForm] = useState({
     expediteur_nom: "", expediteur_tel: "", expediteur_adresse: "",
     destinataire_nom: "", destinataire_tel: "", destinataire_adresse: "",
@@ -55,22 +56,34 @@ function CommanderPage() {
   // Le prix du colis est 0 → la valeur déclarée devient obligatoire (informative)
   const prixEstZero = form.prix_colis.trim() !== "" && Number(form.prix_colis) === 0;
 
-  // Expéditeur auto-rempli depuis le compte + commune de départ = celle du compte
+  // Expéditeur et commune de départ : pris du profil, NON modifiables ici.
+  // La commune peut être stockée dans ramassage_commune OU wilaya selon la page qui l'a enregistrée.
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("nom, nom_boutique, telephone, adresse, wilaya").eq("id", user.id).maybeSingle()
+    supabase.from("profiles").select("*").eq("id", user.id).maybeSingle()
       .then(({ data }) => {
+        setProfilCharge(true);
         if (!data) return;
-        const communeCompte = COMMUNES.find((c) => c.name === (data.wilaya || "").trim())?.name || "";
+        const d: any = data;
+        const communeCompte =
+          COMMUNES.find((c) => c.name === String(d.ramassage_commune || "").trim())?.name ||
+          COMMUNES.find((c) => c.name === String(d.commune || "").trim())?.name ||
+          COMMUNES.find((c) => c.name === String(d.wilaya || "").trim())?.name ||
+          "";
         setForm((f) => ({
           ...f,
-          expediteur_nom: f.expediteur_nom || data.nom_boutique || data.nom || "",
-          expediteur_tel: f.expediteur_tel || data.telephone || "",
-          expediteur_adresse: f.expediteur_adresse || [data.adresse, data.wilaya].filter(Boolean).join(", "),
-          depart: f.depart || communeCompte,
+          expediteur_nom: d.nom_boutique || d.nom || "",
+          expediteur_tel: d.telephone || "",
+          expediteur_adresse: [d.adresse, communeCompte || d.wilaya].filter(Boolean).join(", "),
+          depart: communeCompte,
         }));
       });
   }, [user]);
+
+  // Le profil doit être complet pour commander (l'expéditeur figure sur le bordereau)
+  const profilIncomplet =
+    profilCharge &&
+    (!form.expediteur_nom || !form.expediteur_tel || !form.expediteur_adresse || !form.depart);
 
   const estimation = useMemo(() => {
     const a = COMMUNES.find((c) => c.name === form.depart);
@@ -83,6 +96,10 @@ function CommanderPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) { toast.error(t("cmd.err.login")); return; }
+    if (profilIncomplet) {
+      toast.error("Complétez votre profil (adresse et commune) avant de commander");
+      return;
+    }
     const parsed = schema.safeParse(form);
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
@@ -182,26 +199,61 @@ function CommanderPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteNav />
-      <section className="bg-gradient-hero py-12 text-white">
+      <section className="border-b border-border bg-secondary/40 py-12">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl font-black md:text-5xl">{t("cmd.title")}</h1>
-          <p className="mt-2 text-white/80">{t("cmd.sub")}</p>
+          <p className="mt-2 text-muted-foreground">{t("cmd.sub")}</p>
         </div>
       </section>
 
       <section className="py-12">
         <form onSubmit={onSubmit} className="container mx-auto grid max-w-5xl gap-6 px-4 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            <Card title={t("cmd.sender")}>
-              <p className="-mt-2 text-xs text-muted-foreground">
-                Pré-rempli depuis votre compte — modifiable si besoin.
-              </p>
-              <Grid>
-                <Field label={t("cmd.fullname")} id="en" value={form.expediteur_nom} onChange={(v) => setForm({ ...form, expediteur_nom: v })} />
-                <Field label={t("cmd.phone")} id="et" type="tel" value={form.expediteur_tel} onChange={(v) => setForm({ ...form, expediteur_tel: v })} />
-              </Grid>
-              <Field label={t("cmd.address")} id="ea" value={form.expediteur_adresse} onChange={(v) => setForm({ ...form, expediteur_adresse: v })} />
-            </Card>
+            {/* Expéditeur — lecture seule depuis le profil */}
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h3 className="font-bold">{t("cmd.sender")}</h3>
+                <Link to="/profil" className="inline-flex items-center gap-1.5 text-sm font-bold text-primary hover:underline">
+                  <Pencil className="h-3.5 w-3.5" /> Modifier dans mon profil
+                </Link>
+              </div>
+
+              {profilIncomplet ? (
+                <div className="flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/10 p-4">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+                  <div className="text-sm">
+                    <div className="font-bold">Profil incomplet</div>
+                    <p className="mt-0.5 text-muted-foreground">
+                      Ces informations figurent sur le bordereau. Renseignez votre adresse et votre
+                      commune dans <Link to="/profil" className="font-bold text-primary hover:underline">votre profil</Link> pour
+                      pouvoir commander.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-3 rounded-xl border border-border bg-secondary/50 p-4 sm:grid-cols-2">
+                  <div className="flex items-center gap-2.5">
+                    <UserIcon className="h-4 w-4 shrink-0 text-primary" />
+                    <span className="font-semibold">{form.expediteur_nom || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Phone className="h-4 w-4 shrink-0 text-primary" />
+                    <span>{form.expediteur_tel || "—"}</span>
+                  </div>
+                  <div className="flex items-start gap-2.5 sm:col-span-2">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <span>
+                      {form.expediteur_adresse || "—"}
+                      {form.depart && (
+                        <span className="ml-2 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+                          Départ : {form.depart}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <Card title={t("cmd.recipient")}>
               <Grid>
@@ -334,17 +386,19 @@ function CommanderPage() {
                   })}
                 </div>
               </div>
+
+              {/* Commune de départ — lecture seule depuis le profil */}
               <div>
-                <Label htmlFor="dep">{t("cmd.from")}</Label>
-                <select id="dep" required className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                  value={form.depart} onChange={(e) => setForm({ ...form, depart: e.target.value })}>
-                  <option value="">{t("cmd.choose")}</option>
-                  {COMMUNES.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
-                </select>
+                <Label>{t("cmd.from")}</Label>
+                <div className="mt-1 flex items-center gap-2 rounded-md border border-border bg-secondary/60 px-3 py-2 text-sm font-semibold">
+                  <MapPin className="h-4 w-4 shrink-0 text-primary" />
+                  {form.depart || <span className="font-normal text-muted-foreground">Non renseignée — voir votre profil</span>}
+                </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Pré-remplie avec la commune de votre compte.
+                  Commune de votre compte — modifiable dans votre profil.
                 </p>
               </div>
+
               <div className="mt-3">
                 <Label htmlFor="arr">{t("cmd.to")}</Label>
                 <select id="arr" required className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
@@ -362,11 +416,13 @@ function CommanderPage() {
                     <div className="mt-2 text-4xl font-black text-primary">{estimation.prix} <span className="text-base font-medium text-white/70">DA</span></div>
                   </>
                 ) : (
-                  <div className="mt-2 text-sm text-white/60">{t("cmd.choose.both")}</div>
+                  <div className="mt-2 text-sm text-white/60">
+                    {form.depart ? "Choisissez la commune d'arrivée" : "Complétez votre profil (commune de départ)"}
+                  </div>
                 )}
               </div>
 
-              <Button type="submit" disabled={submitting || !estimation} className="mt-4 w-full bg-gradient-primary shadow-glow">
+              <Button type="submit" disabled={submitting || !estimation || profilIncomplet} className="mt-4 w-full bg-gradient-primary shadow-glow">
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {t("cmd.submit")}
               </Button>
