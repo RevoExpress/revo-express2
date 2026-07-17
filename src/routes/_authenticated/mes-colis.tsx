@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { TrackingBadge } from "@/components/tracking-badge";
+import { ColisHistoriqueModal } from "@/components/colis-historique-modal";
 import { STATUTS, COMMUNES } from "@/lib/tarifs";
 import { exportColisToXLSX } from "@/lib/export-csv";
 import {
@@ -51,6 +52,7 @@ function MesColisPage() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [histoColis, setHistoColis] = useState<any | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -398,7 +400,15 @@ function MesColisPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-3"><Badge statut={c.statut} /></td>
+                        <td className="px-3 py-3">
+                          <button
+                            onClick={() => setHistoColis(c)}
+                            title="Voir l'historique"
+                            className="cursor-pointer rounded-full transition-shadow hover:ring-2 hover:ring-primary/40"
+                          >
+                            <Badge statut={c.statut} />
+                          </button>
+                        </td>
                         <td className="px-3 py-3">
                           <div className="font-medium">{c.destinataire_nom}</div>
                           <div className="text-xs text-muted-foreground">{c.destinataire_tel}</div>
@@ -482,6 +492,15 @@ function MesColisPage() {
         )}
       </section>
       <SiteFooter />
+
+      {/* Fenêtre d'historique (clic sur le statut) */}
+      {histoColis && (
+        <ColisHistoriqueModal
+          tracking={histoColis.tracking}
+          typeColis={histoColis.type_colis}
+          onClose={() => setHistoColis(null)}
+        />
+      )}
     </div>
   );
 }

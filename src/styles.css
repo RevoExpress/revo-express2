@@ -5,17 +5,17 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * REVO EXPRESS — Design System v3 "Simple, propre, soigné"
- * Sobre dans les surfaces, précis dans les interactions.
+ * REVO EXPRESS — Design System v4 "Raffiné"
+ * Référence : maquette claire du 17/07 — blanc, aéré, orange en accents précis.
  */
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 3px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 6px);
-  --radius-3xl: calc(var(--radius) + 8px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -46,28 +46,28 @@
 }
 
 :root {
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 
   /* Brand */
   --primary: oklch(0.71 0.18 50);              /* #f97316 orange */
   --primary-foreground: oklch(1 0 0);
   --primary-glow: oklch(0.78 0.15 60);
-  --navy: oklch(0.18 0.01 60);
-  --navy-foreground: oklch(0.98 0 0);
+  --navy: oklch(0.155 0.008 60);               /* charbon profond (bandeau CTA) */
+  --navy-foreground: oklch(0.985 0 0);
 
-  /* Neutres — fond gris très clair, texte charbon */
-  --background: oklch(0.98 0 0);
-  --foreground: oklch(0.2 0.01 60);
+  /* Neutres — blanc dominant, sections gris perle, texte charbon */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.185 0.008 60);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.01 60);
+  --card-foreground: oklch(0.185 0.008 60);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.01 60);
-  --secondary: oklch(0.96 0 0);
-  --secondary-foreground: oklch(0.25 0.01 60);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.48 0.005 60);
-  --accent: oklch(0.955 0.01 60);
-  --accent-foreground: oklch(0.25 0.01 60);
+  --popover-foreground: oklch(0.185 0.008 60);
+  --secondary: oklch(0.975 0.002 60);
+  --secondary-foreground: oklch(0.25 0.008 60);
+  --muted: oklch(0.965 0.002 60);
+  --muted-foreground: oklch(0.5 0.006 60);
+  --accent: oklch(0.96 0.015 60);
+  --accent-foreground: oklch(0.25 0.008 60);
 
   /* Statuts */
   --destructive: oklch(0.62 0.22 27);
@@ -77,34 +77,34 @@
   --info: oklch(0.62 0.15 55);
 
   /* UI */
-  --border: oklch(0.92 0.003 60);
+  --border: oklch(0.93 0.003 60);
   --input: oklch(0.9 0.003 60);
   --ring: oklch(0.71 0.18 50);
 
-  /* Effets — du relief là où on clique, de la retenue partout ailleurs */
-  --gradient-primary: linear-gradient(180deg, oklch(0.75 0.17 52), oklch(0.67 0.19 46));
-  --gradient-navy: linear-gradient(150deg, oklch(0.25 0.005 60), oklch(0.17 0.005 60));
+  /* Effets — raffinés : de la profondeur sans lourdeur */
+  --gradient-primary: linear-gradient(180deg, oklch(0.74 0.175 52), oklch(0.68 0.19 47));
+  --gradient-navy: linear-gradient(160deg, oklch(0.21 0.012 55), oklch(0.13 0.008 60));
   --gradient-hero: linear-gradient(135deg, oklch(0.6 0.19 40) 0%, oklch(0.73 0.18 52) 100%);
-  --shadow-soft: 0 1px 3px oklch(0.2 0.01 60 / 0.08);
-  --shadow-glow: 0 2px 10px -2px oklch(0.71 0.18 50 / 0.45), inset 0 1px 0 oklch(1 0 0 / 0.22);
-  --shadow-card: 0 1px 2px oklch(0.2 0.01 60 / 0.06), 0 0 0 1px oklch(0.2 0.01 60 / 0.02);
+  --shadow-soft: 0 1px 2px oklch(0.2 0.01 60 / 0.06);
+  --shadow-glow: 0 6px 18px -6px oklch(0.71 0.18 50 / 0.45), inset 0 1px 0 oklch(1 0 0 / 0.25);
+  --shadow-card: 0 1px 2px oklch(0.2 0.01 60 / 0.05), 0 4px 16px -8px oklch(0.2 0.01 60 / 0.07), 0 0 0 1px oklch(0.2 0.01 60 / 0.015);
 }
 
 .dark {
   /* Dark profond, légèrement réchauffé — les cartes se détachent d'un fin liseré */
   --background: oklch(0.13 0.012 55);
   --foreground: oklch(0.97 0.003 60);
-  --card: oklch(0.185 0.015 55);
+  --card: oklch(0.18 0.014 55);
   --card-foreground: oklch(0.97 0.003 60);
-  --popover: oklch(0.185 0.015 55);
+  --popover: oklch(0.18 0.014 55);
   --popover-foreground: oklch(0.97 0.003 60);
-  --secondary: oklch(0.25 0.018 55);
+  --secondary: oklch(0.22 0.014 55);
   --secondary-foreground: oklch(0.97 0.003 60);
-  --muted: oklch(0.23 0.016 55);
+  --muted: oklch(0.22 0.014 55);
   --muted-foreground: oklch(0.73 0.02 55);
-  --accent: oklch(0.28 0.04 52);
+  --accent: oklch(0.27 0.035 52);
   --accent-foreground: oklch(0.97 0.003 60);
-  --border: oklch(0.32 0.02 55);
+  --border: oklch(0.3 0.018 55);
   --input: oklch(0.3 0.02 55);
   --ring: oklch(0.75 0.17 52);
 
@@ -116,11 +116,12 @@
 
   --primary: oklch(0.73 0.18 52);
   --primary-glow: oklch(0.8 0.15 58);
+  --navy: oklch(0.1 0.008 60);
   --gradient-primary: linear-gradient(180deg, oklch(0.77 0.17 54), oklch(0.68 0.19 46));
-  --gradient-navy: linear-gradient(150deg, oklch(0.24 0.005 60), oklch(0.16 0.005 60));
+  --gradient-navy: linear-gradient(160deg, oklch(0.2 0.012 55), oklch(0.12 0.008 60));
   --gradient-hero: linear-gradient(135deg, oklch(0.55 0.18 40) 0%, oklch(0.7 0.18 52) 100%);
   --shadow-card: 0 1px 3px oklch(0 0 0 / 0.4), inset 0 1px 0 oklch(1 0 0 / 0.04);
-  --shadow-glow: 0 2px 14px -2px oklch(0.71 0.18 50 / 0.5), inset 0 1px 0 oklch(1 0 0 / 0.18);
+  --shadow-glow: 0 6px 20px -6px oklch(0.71 0.18 50 / 0.5), inset 0 1px 0 oklch(1 0 0 / 0.18);
   --shadow-soft: 0 1px 3px oklch(0 0 0 / 0.4);
 }
 
@@ -140,7 +141,7 @@
   }
   h1, h2, h3, h4 {
     font-family: var(--font-display);
-    letter-spacing: -0.015em;
+    letter-spacing: -0.02em;
     font-weight: 700;
   }
   /* Les interactions : fluides partout (boutons, selects de statut, liens-boutons) */
@@ -174,12 +175,24 @@
   /* Les boutons d'action principaux se soulèvent au survol */
   .bg-gradient-primary:hover {
     filter: brightness(1.06);
-    box-shadow: 0 4px 16px -4px oklch(0.71 0.18 50 / 0.55), inset 0 1px 0 oklch(1 0 0 / 0.22);
+    box-shadow: 0 8px 22px -6px oklch(0.71 0.18 50 / 0.55), inset 0 1px 0 oklch(1 0 0 / 0.25);
     transform: translateY(-1px);
   }
   .bg-gradient-primary:active {
     filter: brightness(0.97);
     transform: translateY(0) scale(0.98);
+  }
+  /* Icône en contour orange sur pastille douce — style maquette */
+  .icon-tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 3rem;
+    width: 3rem;
+    border-radius: 0.875rem;
+    background: oklch(0.71 0.18 50 / 0.09);
+    color: var(--color-primary);
+    border: 1px solid oklch(0.71 0.18 50 / 0.18);
   }
   /* Calme l'extra-noir hérité sans le rendre mou */
   .font-black { font-weight: 750 !important; }

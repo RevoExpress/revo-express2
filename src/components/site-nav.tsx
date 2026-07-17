@@ -30,9 +30,9 @@ function normalizeTracking(input: string): string | null {
   return null;
 }
 
-// Icônes rondes de la barre orange
+// Icônes rondes de la barre blanche
 const iconBtn =
-  "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition-all hover:bg-white/20 active:scale-95";
+  "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground/65 transition-all hover:bg-muted hover:text-foreground active:scale-95";
 
 export function SiteNav() {
   const { user, role, signOut } = useAuth();
@@ -105,11 +105,8 @@ export function SiteNav() {
 
   return (
     <>
-      <header
-        className="sticky top-0 z-40 w-full border-b border-black/10 text-white shadow-md"
-        style={{ background: "linear-gradient(90deg, #e85d04 0%, #f97316 50%, #fb923c 100%)" }}
-      >
-        <div className="relative mx-auto flex h-16 items-center justify-between gap-2 px-2 md:px-4">
+      <header className="sticky top-0 z-40 w-full border-b border-border bg-background/90 shadow-soft backdrop-blur-md">
+        <div className="relative mx-auto flex h-16 items-center justify-between gap-2 px-2 md:h-20 md:px-4">
           {/* GAUCHE — hamburger */}
           <button
             type="button"
@@ -120,24 +117,30 @@ export function SiteNav() {
             <Menu className="h-6 w-6" />
           </button>
 
-          {/* CENTRE — logo blanc en grand, directement sur l'orange */}
+          {/* CENTRE — logo grand, centré */}
           <Link
             to="/"
             className="pointer-events-auto flex shrink-0 items-center md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2"
             aria-label="REVO EXPRESS"
           >
-            <img
-              src={logoDark}
-              alt="REVO EXPRESS"
-              className="h-16 w-auto md:h-24"
-                style={{ filter: "brightness(0) invert(1) drop-shadow(0 1px 3px rgba(0,0,0,0.35))" }}
-            />
+            <img src={logoLight} alt="REVO EXPRESS" className="h-14 w-auto dark:hidden md:h-[4.5rem]" />
+            <img src={logoDark} alt="REVO EXPRESS" className="hidden h-14 w-auto dark:block md:h-[4.5rem]" />
           </Link>
 
-          {/* DROITE — langue / thème / installer / + / cloche / loupe | compte */}
+          {/* DROITE — loupe / thème / langue / installer / ➕ / cloche / Commander ou compte */}
           <div className="flex shrink-0 items-center gap-0.5">
-            <div className="hidden md:block"><LangSwitcher variant="brand" /></div>
-            <div className="hidden md:block"><ThemeToggle variant="brand" /></div>
+            <button
+              type="button"
+              onClick={() => { setSearchError(false); setSearchOpen(true); }}
+              aria-label="Rechercher un colis"
+              title="Rechercher un colis"
+              className={iconBtn}
+            >
+              <Search className="h-5 w-5" />
+            </button>
+
+            <div className="hidden md:block"><ThemeToggle /></div>
+            <div className="hidden md:block"><LangSwitcher /></div>
 
             {canInstall && (
               <button
@@ -151,7 +154,7 @@ export function SiteNav() {
               </button>
             )}
 
-            {user ? (
+            {user && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button type="button" aria-label={t("nav.quick.new")} title={t("nav.quick.new")} className={iconBtn}>
@@ -187,27 +190,12 @@ export function SiteNav() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
-              <Link to="/commander" aria-label={t("nav.commander")} title={t("nav.commander")} className={iconBtn}>
-                <Plus className="h-5 w-5" />
-              </Link>
             )}
 
             {user && <NotificationsBell />}
 
-            {/* LA LOUPE */}
-            <button
-              type="button"
-              onClick={() => { setSearchError(false); setSearchOpen(true); }}
-              aria-label="Rechercher un colis"
-              title="Rechercher un colis"
-              className={iconBtn}
-            >
-              <Search className="h-5 w-5" />
-            </button>
-
-            {/* séparateur discret avant le compte */}
-            <span className="mx-1 hidden h-6 w-px bg-white/25 md:block" />
+            {/* séparateur discret */}
+            <span className="mx-1.5 hidden h-6 w-px bg-border md:block" />
 
             {user ? (
               <DropdownMenu>
@@ -239,11 +227,18 @@ export function SiteNav() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Link to="/login">
-                <Button variant="ghost" size="sm" className="text-white hover:bg-white/20 hover:text-white">
-                  {t("nav.login")}
-                </Button>
-              </Link>
+              <>
+                <Link to="/commander" className="hidden sm:block">
+                  <Button className="gap-2 rounded-full bg-gradient-primary px-5 font-bold shadow-glow">
+                    {t("nav.commander")}
+                  </Button>
+                </Link>
+                <Link to="/login">
+                  <Button variant="ghost" size="sm" className="font-semibold text-foreground/70 hover:text-foreground">
+                    {t("nav.login")}
+                  </Button>
+                </Link>
+              </>
             )}
           </div>
         </div>
@@ -298,7 +293,7 @@ export function SiteNav() {
         </div>
       )}
 
-      {/* Slide-in drawer with nav links */}
+      {/* Menu latéral */}
       {open && (
         <>
           <div
@@ -341,7 +336,7 @@ export function SiteNav() {
               )}
             </nav>
 
-            <div className="mt-auto flex flex-col gap-2 border-t border-border p-4 md:hidden">
+            <div className="mt-auto flex flex-col gap-2 border-t border-border p-4">
               <Link to="/commander" onClick={() => setOpen(false)}>
                 <Button className="w-full gap-2 rounded-full bg-gradient-primary">
                   <Plus className="h-4 w-4" /> {t("nav.commander")} <ArrowRight className="h-4 w-4" />
