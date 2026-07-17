@@ -4,7 +4,6 @@ import { ArrowRight, Truck, Clock, Shield, MapPin, Package, RotateCcw, Banknote,
 import { Button } from "@/components/ui/button";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
-import { FloatingBanner } from "@/components/floating-banner";
 import { useTheme } from "@/hooks/use-theme";
 import { useI18n } from "@/hooks/use-i18n";
 import { useAuth, homeForRole } from "@/hooks/use-auth";
@@ -53,52 +52,59 @@ function HomePage() {
     <div className="flex min-h-screen flex-col">
       <SiteNav />
 
-      <section className="relative overflow-hidden bg-gradient-hero text-white">
-        <div className="absolute inset-0 opacity-30" style={{
-          backgroundImage: "radial-gradient(circle at 20% 30%, rgba(249,115,22,0.4) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(249,115,22,0.3) 0%, transparent 50%)"
-        }} />
-        <div className="container relative mx-auto grid gap-12 px-4 py-20 md:grid-cols-2 md:py-32">
+      {/* HERO — fond clair, l'orange en accents */}
+      <section className="relative overflow-hidden bg-background">
+        {/* halos orange discrets */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 85% 20%, rgba(249,115,22,0.14) 0%, transparent 45%), radial-gradient(circle at 10% 90%, rgba(249,115,22,0.10) 0%, transparent 40%)",
+          }}
+        />
+        <div className="container relative mx-auto grid gap-12 px-4 py-20 md:grid-cols-2 md:py-28">
           <div className="flex flex-col justify-center">
-            <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur">
+            <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary">
               <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
               {t("hero.badge")}
             </span>
-            <h1 className="text-balance text-5xl font-black leading-tight md:text-6xl lg:text-7xl">
+            <h1 className="text-balance text-5xl font-black leading-tight text-foreground md:text-6xl lg:text-7xl">
               {t("hero.title.1")} <span className="text-primary">{t("hero.title.2")}</span>
             </h1>
-            <p className="mt-6 max-w-lg text-lg text-white/80">{t("hero.sub")}</p>
+            <p className="mt-6 max-w-lg text-lg text-muted-foreground">{t("hero.sub")}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/commander">
-                <Button size="lg" className="gap-2 bg-gradient-primary shadow-glow">
+                <Button size="lg" className="gap-2 bg-gradient-primary font-bold shadow-glow">
                   {t("hero.cta.order")}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
               <Link to="/suivi">
-                <Button size="lg" variant="outline" className="gap-2 border-white/30 bg-white/10 text-white hover:bg-white/20">
+                <Button size="lg" variant="outline" className="gap-2 border-primary/40 font-bold text-primary hover:bg-primary/10 hover:text-primary">
                   {t("hero.cta.track")}
                 </Button>
               </Link>
             </div>
-            <div className="mt-10 flex flex-wrap gap-6 text-sm">
+            <div className="mt-10 flex flex-wrap gap-8 text-sm">
               <Stat n="30min" label={t("hero.stat.pickup")} />
               <Stat n="100%" label={t("hero.stat.sameday")} />
-              <Stat n="38" label={t("hero.stat.communes")} />
+              <Stat n="57" label={t("hero.stat.communes")} />
             </div>
           </div>
 
           <div className="flex items-center justify-center">
             <div className="relative">
-              <div className="absolute -inset-12 rounded-full bg-primary/30 blur-3xl" />
-              <div className="absolute -inset-6 rounded-full bg-white/5 blur-2xl" />
+              <div className="absolute -inset-10 rounded-full bg-primary/15 blur-3xl" />
               <img
                 src={heroLogo}
                 alt="REVO EXPRESS"
-                className="relative h-64 w-auto drop-shadow-2xl md:h-80 lg:h-96"
+                className="relative h-56 w-auto drop-shadow-xl md:h-72 lg:h-80"
               />
             </div>
           </div>
         </div>
+        {/* liseré orange sous le hero */}
+        <div className="h-1 w-full bg-gradient-to-r from-transparent via-primary to-transparent" />
       </section>
 
       <section id="services" className="bg-secondary/30 py-20 scroll-mt-24">
@@ -191,7 +197,7 @@ function HomePage() {
                 <span key={c} className="rounded-lg bg-white/5 px-2 py-2 text-white/85">{c}</span>
               ))}
             </div>
-            <p className="mt-4 text-center text-xs uppercase tracking-wider text-white/50">+ 26 autres communes</p>
+            <p className="mt-4 text-center text-xs uppercase tracking-wider text-white/50">+ 45 autres communes</p>
           </div>
         </div>
       </section>
@@ -227,7 +233,6 @@ function HomePage() {
       </section>
 
       <SiteFooter />
-      <FloatingBanner />
     </div>
   );
 }
@@ -257,7 +262,7 @@ function Stat({ n, label }: { n: string; label: string }) {
   return (
     <div>
       <div className="text-2xl font-black text-primary">{n}</div>
-      <div className="text-xs uppercase tracking-wider text-white/60">{label}</div>
+      <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</div>
     </div>
   );
 }
