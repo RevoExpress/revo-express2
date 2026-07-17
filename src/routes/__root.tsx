@@ -13,6 +13,7 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { I18nProvider } from "@/hooks/use-i18n";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { Toaster } from "@/components/ui/sonner";
+import { WhatsappButton } from "@/components/whatsapp-button";
 
 function NotFoundComponent() {
   return (
@@ -113,6 +114,7 @@ function RootComponent() {
         <I18nProvider>
           <AuthProvider>
             <Outlet />
+            <WhatsappButton />
             <Toaster richColors position="top-right" />
           </AuthProvider>
         </I18nProvider>

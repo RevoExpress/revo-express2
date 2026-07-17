@@ -40,13 +40,36 @@ type Colis = {
 
 type Livreur = { id: string; nom: string | null; email: string | null };
 
-const STATUT_COLORS: Record<StatutKey, string> = {
-  "en-attente": "oklch(var(--warning))",
-  "pris-en-charge": "oklch(var(--primary))",
-  "en-cours": "oklch(var(--primary) / 0.7)",
-  "livre": "oklch(var(--success))",
-  "echec": "oklch(var(--destructive))",
+/* Couleurs directes (hex) — les graphiques ne comprennent pas oklch(var(...)) */
+const C = {
+  orange: "#f97316",
+  orangeClair: "#fb923c",
+  orangeDoux: "#fdba74",
+  vert: "#22c55e",
+  jaune: "#f59e0b",
+  jauneDoux: "#fcd34d",
+  rouge: "#dc2626",
+  rougeDoux: "#f87171",
+  gris: "#9ca3af",
+  grille: "#e5e7eb",
+  axe: "#9ca3af",
 };
+
+const STATUT_COLORS: Record<StatutKey, string> = {
+  "en-preparation": C.jaune,
+  "ramasse": C.orangeDoux,
+  "expedie": C.orangeClair,
+  "en-livraison": C.orange,
+  "contact-client": C.jauneDoux,
+  "livre": C.vert,
+  "reporte": C.jauneDoux,
+  "echec-livraison": C.rouge,
+  "retourne-vendeur": C.rougeDoux,
+  "annule": C.gris,
+};
+
+const STATUTS_EN_ROUTE = ["ramasse", "expedie", "en-livraison", "contact-client", "reporte"];
+const STATUTS_TERMINES_SANS_CA = ["echec-livraison", "retourne-vendeur", "annule"];
 
 function fmtDA(n: number) {
   return new Intl.NumberFormat("fr-DZ").format(Math.round(n)) + " DA";
@@ -115,17 +138,17 @@ export function AdminStats() {
   const kpis = useMemo(() => {
     const total = colis.length;
     const livre = colis.filter((c) => c.statut === "livre").length;
-    const enCours = colis.filter((c) => c.statut === "en-cours" || c.statut === "pris-en-charge").length;
-    const enAttente = colis.filter((c) => c.statut === "en-attente").length;
-    const echec = colis.filter((c) => c.statut === "echec").length;
+    const enCours = colis.filter((c) => STATUTS_EN_ROUTE.includes(c.statut)).length;
+    const enPreparation = colis.filter((c) => c.statut === "en-preparation").length;
+    const echec = colis.filter((c) => c.statut === "echec-livraison" || c.statut === "retourne-vendeur").length;
     const caLivre = colis
       .filter((c) => c.statut === "livre")
       .reduce((s, c) => s + Number(c.prix || 0), 0);
     const caEnCours = colis
-      .filter((c) => c.statut !== "livre" && c.statut !== "echec")
+      .filter((c) => c.statut !== "livre" && !STATUTS_TERMINES_SANS_CA.includes(c.statut))
       .reduce((s, c) => s + Number(c.prix || 0), 0);
     const taux = total ? Math.round((livre / total) * 100) : 0;
-    return { total, livre, enCours, enAttente, echec, caLivre, caEnCours, taux };
+    return { total, livre, enCours, enPreparation, echec, caLivre, caEnCours, taux };
   }, [colis]);
 
   const series30 = useMemo(() => {
@@ -182,7 +205,7 @@ export function AdminStats() {
       if (!c.livreur_id) continue;
       const cur = byId.get(c.livreur_id) || { livre: 0, encours: 0 };
       if (c.statut === "livre") cur.livre += 1;
-      else if (c.statut !== "echec") cur.encours += 1;
+      else if (!STATUTS_TERMINES_SANS_CA.includes(c.statut)) cur.encours += 1;
       byId.set(c.livreur_id, cur);
     }
     const byName = new Map(livreurs.map((l) => [l.id, l.nom || l.email || "Livreur"]));
@@ -209,10 +232,10 @@ export function AdminStats() {
         <KpiCard icon={Package} label="Total colis" value={kpis.total} tone="primary" />
         <KpiCard icon={CheckCircle2} label="Livrés" value={kpis.livre} sub={`${kpis.taux}% taux livraison`} tone="success" />
         <KpiCard icon={Truck} label="En cours" value={kpis.enCours} tone="primary" />
-        <KpiCard icon={Clock} label="En attente" value={kpis.enAttente} tone="warning" />
+        <KpiCard icon={Clock} label="En préparation" value={kpis.enPreparation} tone="warning" />
         <KpiCard icon={Wallet} label="CA encaissé" value={fmtDA(kpis.caLivre)} sub="colis livrés" tone="success" wide />
         <KpiCard icon={TrendingUp} label="CA en cours" value={fmtDA(kpis.caEnCours)} sub="à encaisser" tone="primary" wide />
-        <KpiCard icon={XCircle} label="Échecs" value={kpis.echec} tone="destructive" />
+        <KpiCard icon={XCircle} label="Échecs / Retours" value={kpis.echec} tone="destructive" />
         <KpiCard icon={Users} label="Livreurs" value={livreurs.length} tone="muted" />
       </div>
 
@@ -231,20 +254,20 @@ export function AdminStats() {
             <AreaChart data={series30} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="oklch(var(--primary))" stopOpacity={0.45} />
-                  <stop offset="95%" stopColor="oklch(var(--primary))" stopOpacity={0} />
+                  <stop offset="5%" stopColor={C.orange} stopOpacity={0.4} />
+                  <stop offset="95%" stopColor={C.orange} stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gradLivre" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="oklch(var(--success))" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="oklch(var(--success))" stopOpacity={0} />
+                  <stop offset="5%" stopColor={C.vert} stopOpacity={0.35} />
+                  <stop offset="95%" stopColor={C.vert} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(var(--border))" vertical={false} />
-              <XAxis dataKey="label" stroke="oklch(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} interval={3} />
-              <YAxis stroke="oklch(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-              <Tooltip content={<ChartTooltip />} cursor={{ stroke: "oklch(var(--border))" }} />
-              <Area type="monotone" name="Créés" dataKey="total" stroke="oklch(var(--primary))" strokeWidth={2} fill="url(#gradTotal)" />
-              <Area type="monotone" name="Livrés" dataKey="livre" stroke="oklch(var(--success))" strokeWidth={2} fill="url(#gradLivre)" />
+              <CartesianGrid strokeDasharray="3 3" stroke={C.grille} vertical={false} />
+              <XAxis dataKey="label" stroke={C.axe} fontSize={11} tickLine={false} axisLine={false} interval={3} />
+              <YAxis stroke={C.axe} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+              <Tooltip content={<ChartTooltip />} cursor={{ stroke: C.grille }} />
+              <Area type="monotone" name="Créés" dataKey="total" stroke={C.orange} strokeWidth={2} fill="url(#gradTotal)" />
+              <Area type="monotone" name="Livrés" dataKey="livre" stroke={C.vert} strokeWidth={2} fill="url(#gradLivre)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -261,7 +284,7 @@ export function AdminStats() {
             <div className="h-56 w-full sm:w-1/2">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={statutData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={85} paddingAngle={2} stroke="oklch(var(--card))" strokeWidth={2}>
+                  <Pie data={statutData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={85} paddingAngle={2} stroke="#ffffff" strokeWidth={2}>
                     {statutData.map((d, i) => (
                       <Cell key={i} fill={d.color} />
                     ))}
@@ -298,11 +321,11 @@ export function AdminStats() {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={wilayaData} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(var(--border))" horizontal={false} />
-                  <XAxis type="number" stroke="oklch(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" stroke="oklch(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} width={110} />
-                  <Tooltip content={<ChartTooltip />} cursor={{ fill: "oklch(var(--muted) / 0.4)" }} />
-                  <Bar dataKey="value" name="Colis" fill="oklch(var(--primary))" radius={[0, 6, 6, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={C.grille} horizontal={false} />
+                  <XAxis type="number" stroke={C.axe} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <YAxis type="category" dataKey="name" stroke={C.axe} fontSize={11} tickLine={false} axisLine={false} width={110} />
+                  <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
+                  <Bar dataKey="value" name="Colis" fill={C.orange} radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -323,13 +346,13 @@ export function AdminStats() {
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={livreurData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(var(--border))" vertical={false} />
-                <XAxis dataKey="name" stroke="oklch(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="oklch(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: "oklch(var(--muted) / 0.4)" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={C.grille} vertical={false} />
+                <XAxis dataKey="name" stroke={C.axe} fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke={C.axe} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
-                <Bar dataKey="livre" name="Livrés" stackId="a" fill="oklch(var(--success))" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="encours" name="En cours" stackId="a" fill="oklch(var(--primary))" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="livre" name="Livrés" stackId="a" fill={C.vert} radius={[0, 0, 0, 0]} />
+                <Bar dataKey="encours" name="En cours" stackId="a" fill={C.orange} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -355,22 +378,21 @@ function KpiCard({
   wide?: boolean;
 }) {
   const tones: Record<string, string> = {
-    primary: "from-primary/10 to-primary/0 text-primary",
-    success: "from-success/10 to-success/0 text-success",
-    warning: "from-warning/10 to-warning/0 text-warning",
-    destructive: "from-destructive/10 to-destructive/0 text-destructive",
-    muted: "from-muted to-transparent text-muted-foreground",
+    primary: "text-primary",
+    success: "text-success",
+    warning: "text-warning",
+    destructive: "text-destructive",
+    muted: "text-muted-foreground",
   };
   return (
-    <div className={cn("relative overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card", wide && "md:col-span-2")}>
-      <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br", tones[tone])} />
-      <div className="relative flex items-start justify-between gap-2">
+    <div className={cn("rounded-2xl border border-border bg-card p-4 shadow-card", wide && "md:col-span-2")}>
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
           <div className="mt-1 truncate text-2xl font-black text-foreground">{value}</div>
           {sub && <div className="mt-0.5 text-[11px] text-muted-foreground">{sub}</div>}
         </div>
-        <div className={cn("rounded-xl bg-background/70 p-2 ring-1 ring-border", tones[tone].split(" ").pop())}>
+        <div className={cn("rounded-xl bg-muted p-2", tones[tone])}>
           <Icon className="h-4 w-4" />
         </div>
       </div>

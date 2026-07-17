@@ -32,7 +32,8 @@ const schema = z.object({
   description: z.string().trim().max(500).optional(),
   depart: z.string().min(1, "Choisissez une commune de départ"),
   arrivee: z.string().min(1, "Choisissez une commune d'arrivée"),
-  prix_colis: z.coerce.number({ invalid_type_error: "Prix du colis requis" }).min(1, "Le prix du colis est obligatoire").max(10000000),
+  // Obligatoire mais 0 accepté (colis déjà payé) — la valeur déclarée prend le relais
+  prix_colis: z.coerce.number({ invalid_type_error: "Prix du colis requis" }).min(0, "Le prix du colis est obligatoire (0 accepté)").max(10000000),
 });
 
 function CommanderPage() {
@@ -43,6 +44,7 @@ function CommanderPage() {
   const [typeLivraison, setTypeLivraison] = useState<DeliveryType>("standard");
   const [typeColis, setTypeColis] = useState<"REV" | "SPL" | "ECH">("REV");
   const [produitRetour, setProduitRetour] = useState("");
+  const [valeurDeclaree, setValeurDeclaree] = useState("");
   const [form, setForm] = useState({
     expediteur_nom: "", expediteur_tel: "", expediteur_adresse: "",
     destinataire_nom: "", destinataire_tel: "", destinataire_adresse: "",
@@ -50,17 +52,22 @@ function CommanderPage() {
     description: "", depart: "", arrivee: "", prix_colis: "",
   });
 
-  // pre-fill expéditeur from profile (nom boutique, tel, adresse créés par le commercial)
+  // Le prix du colis est 0 → la valeur déclarée devient obligatoire (informative)
+  const prixEstZero = form.prix_colis.trim() !== "" && Number(form.prix_colis) === 0;
+
+  // Expéditeur auto-rempli depuis le compte + commune de départ = celle du compte
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("nom, nom_boutique, telephone, adresse, wilaya").eq("id", user.id).maybeSingle()
       .then(({ data }) => {
         if (!data) return;
+        const communeCompte = COMMUNES.find((c) => c.name === (data.wilaya || "").trim())?.name || "";
         setForm((f) => ({
           ...f,
           expediteur_nom: f.expediteur_nom || data.nom_boutique || data.nom || "",
           expediteur_tel: f.expediteur_tel || data.telephone || "",
           expediteur_adresse: f.expediteur_adresse || [data.adresse, data.wilaya].filter(Boolean).join(", "),
+          depart: f.depart || communeCompte,
         }));
       });
   }, [user]);
@@ -81,6 +88,10 @@ function CommanderPage() {
       toast.error(parsed.error.issues[0].message);
       return;
     }
+    if (parsed.data.prix_colis === 0 && !valeurDeclaree.trim()) {
+      toast.error("Prix à 0 : déclarez la valeur du colis (pour information)");
+      return;
+    }
     if (!estimation) { toast.error(t("cmd.err.calc")); return; }
 
     setSubmitting(true);
@@ -95,12 +106,13 @@ function CommanderPage() {
       destinataire_tel: parsed.data.destinataire_tel,
       destinataire_adresse: parsed.data.destinataire_adresse,
       destinataire_wilaya: parsed.data.destinataire_wilaya,
-      destinataire_cp: parsed.data.destinataire_cp,
+      destinataire_cp: parsed.data.destinataire_cp || null,
       description: parsed.data.description,
       depart: parsed.data.depart,
       distance_km: estimation.km,
       prix: estimation.prix,
       prix_colis: parsed.data.prix_colis,
+      valeur_declaree: parsed.data.prix_colis === 0 ? Number(valeurDeclaree) || null : null,
       type_livraison: typeLivraison,
       type_colis: typeColis,
       produit_retour: typeColis !== "REV" ? produitRetour.trim() || null : null,
@@ -181,6 +193,9 @@ function CommanderPage() {
         <form onSubmit={onSubmit} className="container mx-auto grid max-w-5xl gap-6 px-4 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             <Card title={t("cmd.sender")}>
+              <p className="-mt-2 text-xs text-muted-foreground">
+                Pré-rempli depuis votre compte — modifiable si besoin.
+              </p>
               <Grid>
                 <Field label={t("cmd.fullname")} id="en" value={form.expediteur_nom} onChange={(v) => setForm({ ...form, expediteur_nom: v })} />
                 <Field label={t("cmd.phone")} id="et" type="tel" value={form.expediteur_tel} onChange={(v) => setForm({ ...form, expediteur_tel: v })} />
@@ -196,7 +211,7 @@ function CommanderPage() {
               <Field label={t("cmd.address")} id="da" value={form.destinataire_adresse} onChange={(v) => setForm({ ...form, destinataire_adresse: v })} />
               <Grid>
                 <Field label={t("cmd.wilaya")} id="dw" value={form.destinataire_wilaya} onChange={(v) => setForm({ ...form, destinataire_wilaya: v })} />
-                <Field label={t("cmd.zip")} id="dc" value={form.destinataire_cp} onChange={(v) => setForm({ ...form, destinataire_cp: v })} />
+                <Field label={`${t("cmd.zip")} (facultatif)`} id="dc" required={false} value={form.destinataire_cp} onChange={(v) => setForm({ ...form, destinataire_cp: v })} />
               </Grid>
             </Card>
 
@@ -250,7 +265,7 @@ function CommanderPage() {
                   id="prix_colis"
                   type="number"
                   inputMode="numeric"
-                  min={1}
+                  min={0}
                   required
                   className="mt-1"
                   placeholder="2500"
@@ -258,9 +273,29 @@ function CommanderPage() {
                   onChange={(e) => setForm({ ...form, prix_colis: e.target.value })}
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {t("cmd.price.hint")}
+                  Obligatoire — mettez 0 si le colis est déjà payé.
                 </p>
               </div>
+              {prixEstZero && (
+                <div className="rounded-lg border border-warning/40 bg-warning/5 p-3">
+                  <Label htmlFor="valeur_declaree">
+                    Valeur déclarée du colis (DA) <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="valeur_declaree"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    className="mt-1"
+                    placeholder="Ex : 4500"
+                    value={valeurDeclaree}
+                    onChange={(e) => setValeurDeclaree(e.target.value)}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Pour information uniquement — rien ne sera encaissé pour le colis.
+                  </p>
+                </div>
+              )}
               <div>
                 <Label htmlFor="desc">{t("cmd.desc")}</Label>
                 <Textarea id="desc" className="mt-1" rows={3} value={form.description}
@@ -306,6 +341,9 @@ function CommanderPage() {
                   <option value="">{t("cmd.choose")}</option>
                   {COMMUNES.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
                 </select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Pré-remplie avec la commune de votre compte.
+                </p>
               </div>
               <div className="mt-3">
                 <Label htmlFor="arr">{t("cmd.to")}</Label>
@@ -353,13 +391,13 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 function Grid({ children }: { children: React.ReactNode }) {
   return <div className="grid gap-4 md:grid-cols-2">{children}</div>;
 }
-function Field({ label, id, value, onChange, type = "text" }: {
-  label: string; id: string; value: string; onChange: (v: string) => void; type?: string;
+function Field({ label, id, value, onChange, type = "text", required = true }: {
+  label: string; id: string; value: string; onChange: (v: string) => void; type?: string; required?: boolean;
 }) {
   return (
     <div>
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} type={type} required value={value} onChange={(e) => onChange(e.target.value)} className="mt-1" />
+      <Input id={id} type={type} required={required} value={value} onChange={(e) => onChange(e.target.value)} className="mt-1" />
     </div>
   );
 }

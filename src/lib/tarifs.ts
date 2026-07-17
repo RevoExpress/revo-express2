@@ -1,17 +1,68 @@
-// REVO EXPRESS — tarifs et communes d'Alger
+// REVO EXPRESS — tarifs, statuts et communes d'Alger
+
+// ─── TARIFS OFFICIELS ───────────────────────────────────────────
+// Standard : forfait 500 DA toutes distances
+// Urgent   : 1000 / 1300 / 1500 DA selon la distance
+
+export const STANDARD_PRICE = 500; // forfait standard, toutes distances
 
 export const TARIFFS = [
-  { maxKm: 1, price: 300 },
-  { maxKm: 3, price: 400 },
-  { maxKm: 5, price: 500 },
-  { maxKm: 7, price: 600 },
-  { maxKm: 10, price: 750 },
-  { maxKm: 15, price: 1000 },
-  { maxKm: 20, price: 1250 },
-  { maxKm: 30, price: 1600 },
-  { maxKm: 50, price: 2200 },
+  { maxKm: 10, price: 1000 },
+  { maxKm: 20, price: 1300 },
+  { maxKm: 50, price: 1500 },
 ] as const;
 
+export type DeliveryType = "standard" | "urgent";
+
+export function priceForKm(km: number): number {
+  for (const t of TARIFFS) if (km <= t.maxKm) return t.price;
+  return TARIFFS[TARIFFS.length - 1].price;
+}
+
+export function priceForDelivery(km: number, type: DeliveryType): number {
+  return type === "standard" ? STANDARD_PRICE : priceForKm(km);
+}
+
+// ─── COD ────────────────────────────────────────────────────────
+// Par défaut, le destinataire paie produit + frais de livraison.
+// Si les frais sont payés par l'expéditeur, le COD = prix du produit seul.
+export function totalCOD(
+  prixProduit: number,
+  fraisLivraison: number,
+  fraisPayesParExpediteur?: boolean,
+): number {
+  return fraisPayesParExpediteur ? prixProduit : prixProduit + fraisLivraison;
+}
+
+// ─── STATUTS OFFICIELS ──────────────────────────────────────────
+export const STATUTS = [
+  { key: "en-preparation", label: "En préparation", color: "warning" },
+  { key: "ramasse", label: "Ramassé", color: "info" },
+  { key: "expedie", label: "Expédié", color: "info" },
+  { key: "en-livraison", label: "En livraison", color: "info" },
+  { key: "contact-client", label: "Contact client", color: "warning" },
+  { key: "livre", label: "Livré", color: "success" },
+  { key: "reporte", label: "Reporté", color: "warning" },
+  { key: "echec-livraison", label: "Échec de livraison", color: "destructive" },
+  { key: "retourne-vendeur", label: "Retourné au vendeur", color: "destructive" },
+  { key: "annule", label: "Annulé", color: "destructive" },
+] as const;
+
+export type StatutKey = (typeof STATUTS)[number]["key"];
+
+// Renvoie les infos d'un statut, avec repli propre si la clé est inconnue
+// (ex. anciens colis de test créés avec les anciens statuts)
+export function statutInfo(key: string) {
+  return (
+    STATUTS.find((s) => s.key === key) ?? {
+      key,
+      label: key,
+      color: "warning" as const,
+    }
+  );
+}
+
+// ─── COMMUNES D'ALGER ───────────────────────────────────────────
 export type Commune = { name: string; lat: number; lng: number };
 
 export const COMMUNES: Commune[] = [
@@ -69,19 +120,6 @@ export function haversineKm(a: Commune, b: Commune): number {
   return 2 * R * Math.asin(Math.sqrt(x));
 }
 
-export const STANDARD_PRICE = 500; // forfait standard, toutes distances
-
-export type DeliveryType = "standard" | "urgent";
-
-export function priceForKm(km: number): number {
-  for (const t of TARIFFS) if (km <= t.maxKm) return t.price;
-  return TARIFFS[TARIFFS.length - 1].price + Math.ceil((km - 50) / 10) * 300;
-}
-
-export function priceForDelivery(km: number, type: DeliveryType): number {
-  return type === "standard" ? STANDARD_PRICE : priceForKm(km);
-}
-
 // Tracking style REV-XXXXXX
 export function generateTracking(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -91,13 +129,3 @@ export function generateTracking(): string {
   }
   return "REV-" + code;
 }
-
-export const STATUTS = [
-  { key: "en-attente", label: "En attente", color: "warning" },
-  { key: "pris-en-charge", label: "Pris en charge", color: "info" },
-  { key: "en-cours", label: "En cours de livraison", color: "info" },
-  { key: "livre", label: "Livré", color: "success" },
-  { key: "echec", label: "Échec / Retour", color: "destructive" },
-] as const;
-
-export type StatutKey = (typeof STATUTS)[number]["key"];

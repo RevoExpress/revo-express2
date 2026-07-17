@@ -40,6 +40,7 @@ function TypeBadge({ type }: { type?: string | null }) {
 
 export function Bordereau({ colis }: { colis: Colis }) {
   const dateStr = new Date().toLocaleDateString("fr-FR").replaceAll("/", "-");
+  // Montant unique : produit + livraison fusionnés, jamais détaillés sur le bordereau
   const totalEncaisser = Number(colis.prix_colis ?? 0) + Number(colis.prix ?? 0);
 
   return (
@@ -120,13 +121,10 @@ export function Bordereau({ colis }: { colis: Colis }) {
         <div className="mt-1 font-mono text-xl font-bold tracking-[0.2em]">{colis.tracking}</div>
       </div>
 
-      {/* Montant à encaisser — dans un cadre arrondi */}
+      {/* Montant à encaisser — UN SEUL chiffre, jamais de détail */}
       <div className="mb-4 rounded-xl border border-gray-300 py-3 text-center">
         <div className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Montant à encaisser</div>
         <div className="text-3xl font-black leading-none">{totalEncaisser.toLocaleString("fr-FR")} DA</div>
-        <div className="mt-1 text-[10px] text-gray-500">
-          Produit : {Number(colis.prix_colis ?? 0).toLocaleString("fr-FR")} DA + Livraison : {Number(colis.prix ?? 0).toLocaleString("fr-FR")} DA
-        </div>
       </div>
 
       {/* Contenu + Départ côte à côte (avec icônes) */}

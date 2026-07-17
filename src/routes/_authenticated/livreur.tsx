@@ -11,18 +11,32 @@ import { SiteFooter } from "@/components/site-footer";
 import { STATUTS } from "@/lib/tarifs";
 import { Button } from "@/components/ui/button";
 import { BarcodeScanner } from "@/components/barcode-scanner";
+import { TrackingBadge } from "@/components/tracking-badge";
 
 export const Route = createFileRoute("/_authenticated/livreur")({
   head: () => ({ meta: [{ title: "Espace livreur — REVO EXPRESS" }] }),
   component: LivreurPage,
 });
 
-// Workflow: pick the next logical status after the current one
+// Workflow : le prochain statut logique après le statut actuel
 const NEXT_STATUT: Record<string, string> = {
-  "en-attente": "pris-en-charge",
-  "pris-en-charge": "en-cours",
-  "en-cours": "livre",
+  "en-preparation": "ramasse",
+  "ramasse": "expedie",
+  "expedie": "en-livraison",
+  "en-livraison": "livre",
+  "contact-client": "livre",
+  "reporte": "en-livraison",
 };
+
+// Statuts "encore en route" (ni livré, ni échec, ni annulé, ni retourné)
+const STATUTS_EN_COURS = [
+  "en-preparation",
+  "ramasse",
+  "expedie",
+  "en-livraison",
+  "contact-client",
+  "reporte",
+];
 
 function LivreurPage() {
   const { user, role, loading } = useAuth();
@@ -49,7 +63,7 @@ function LivreurPage() {
 
   const stats = useMemo(() => {
     const total = colis.length;
-    const aLivrer = colis.filter((c) => ["en-attente", "pris-en-charge", "en-cours"].includes(c.statut)).length;
+    const aLivrer = colis.filter((c) => STATUTS_EN_COURS.includes(c.statut)).length;
     const livres = colis.filter((c) => c.statut === "livre").length;
     return { total, aLivrer, livres };
   }, [colis]);
@@ -60,9 +74,9 @@ function LivreurPage() {
   }
 
   function handleDetected(text: string) {
-    // Normalize: tracking code is uppercase, allow scanning a full URL like /track/REV-XXXX
+    // Normalisation : le tracking est en majuscules, on accepte aussi une URL /track/REV-XXXX
     let code = text.trim().toUpperCase();
-    const m = code.match(/REV-[A-Z0-9]+/);
+    const m = code.match(/(REV|ECH|SPL)-[A-Z0-9]+/);
     if (m) code = m[0];
 
     const found = colis.find((c) => c.tracking?.toUpperCase() === code);
@@ -167,7 +181,10 @@ function LivreurPage() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="text-xs font-bold uppercase tracking-wider text-primary">Colis scanné</div>
-                <div className="mt-1 font-mono text-lg font-black">{scannedColis.tracking}</div>
+                <div className="mt-1 font-mono text-lg font-black">
+                  {scannedColis.tracking}
+                  <TrackingBadge typeColis={scannedColis.type_colis} />
+                </div>
                 <div className="mt-1 text-sm">
                   <strong>{scannedColis.destinataire_nom}</strong> — {scannedColis.destinataire_tel}
                 </div>
@@ -200,11 +217,11 @@ function LivreurPage() {
                   <CheckCircle2 className="h-4 w-4" /> Marquer livré
                 </Button>
               )}
-              {scannedColis.statut !== "echec" && (
+              {scannedColis.statut !== "echec-livraison" && (
                 <Button
                   variant="outline"
                   className="gap-2 border-destructive text-destructive hover:bg-destructive/10"
-                  onClick={() => quickUpdate(scannedColis.id, "echec")}
+                  onClick={() => quickUpdate(scannedColis.id, "echec-livraison")}
                 >
                   <XCircle className="h-4 w-4" /> Échec de livraison
                 </Button>
@@ -230,7 +247,10 @@ function LivreurPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-bold">{c.tracking}</span>
+                    <span className="font-mono text-sm font-bold">
+                      {c.tracking}
+                      <TrackingBadge typeColis={c.type_colis} />
+                    </span>
                     <Badge statut={c.statut} />
                   </div>
                   <div className="mt-1 text-sm">

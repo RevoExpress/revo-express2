@@ -31,6 +31,11 @@ type SortDir = "asc" | "desc";
 
 const PAGE_SIZES = [10, 25, 50, 100];
 
+// Statuts "encore en route"
+const STATUTS_EN_COURS = [
+  "en-preparation", "ramasse", "expedie", "en-livraison", "contact-client", "reporte",
+];
+
 function MesColisPage() {
   const { user } = useAuth();
   const [colis, setColis] = useState<any[]>([]);
@@ -63,9 +68,9 @@ function MesColisPage() {
 
   const stats = useMemo(() => {
     const total = colis.length;
-    const enCours = colis.filter((c) => ["en-attente", "pris-en-charge", "en-cours"].includes(c.statut)).length;
+    const enCours = colis.filter((c) => STATUTS_EN_COURS.includes(c.statut)).length;
     const livres = colis.filter((c) => c.statut === "livre").length;
-    const echecs = colis.filter((c) => c.statut === "echec").length;
+    const echecs = colis.filter((c) => c.statut === "echec-livraison" || c.statut === "retourne-vendeur").length;
     const cod = colis.filter((c) => c.statut === "livre").reduce((s, c) => s + Number(c.prix_colis ?? 0), 0);
     return { total, enCours, livres, echecs, cod };
   }, [colis]);
@@ -416,7 +421,7 @@ function MesColisPage() {
                                 <Printer className="h-4 w-4" />
                               </Button>
                             </Link>
-                            {c.statut === "en-attente" && (
+                            {c.statut === "en-preparation" && (
                               <Link to="/commander">
                                 <Button size="icon" variant="outline" className="h-8 w-8 text-muted-foreground" title="Modifier">
                                   <Pencil className="h-4 w-4" />
