@@ -26,10 +26,13 @@ import { Route as AuthenticatedOperationsRouteImport } from './routes/_authentic
 import { Route as AuthenticatedMesRetoursRouteImport } from './routes/_authenticated/mes-retours'
 import { Route as AuthenticatedMesColisRouteImport } from './routes/_authenticated/mes-colis'
 import { Route as AuthenticatedLivreurRouteImport } from './routes/_authenticated/livreur'
+import { Route as AuthenticatedImportRouteImport } from './routes/_authenticated/import'
 import { Route as AuthenticatedFeuilleDeRouteRouteImport } from './routes/_authenticated/feuille-de-route'
 import { Route as AuthenticatedEquipeRouteImport } from './routes/_authenticated/equipe'
 import { Route as AuthenticatedComptesRouteImport } from './routes/_authenticated/comptes'
 import { Route as AuthenticatedCommercialRouteImport } from './routes/_authenticated/commercial'
+import { Route as AuthenticatedCommandesApiRouteImport } from './routes/_authenticated/commandes-api'
+import { Route as AuthenticatedClesApiRouteImport } from './routes/_authenticated/cles-api'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedColisTrackingRouteImport } from './routes/_authenticated/colis.$tracking'
 
@@ -121,6 +124,11 @@ const AuthenticatedLivreurRoute = AuthenticatedLivreurRouteImport.update({
   path: '/livreur',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedImportRoute = AuthenticatedImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedFeuilleDeRouteRoute =
   AuthenticatedFeuilleDeRouteRouteImport.update({
     id: '/feuille-de-route',
@@ -140,6 +148,17 @@ const AuthenticatedComptesRoute = AuthenticatedComptesRouteImport.update({
 const AuthenticatedCommercialRoute = AuthenticatedCommercialRouteImport.update({
   id: '/commercial',
   path: '/commercial',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedCommandesApiRoute =
+  AuthenticatedCommandesApiRouteImport.update({
+    id: '/commandes-api',
+    path: '/commandes-api',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedClesApiRoute = AuthenticatedClesApiRouteImport.update({
+  id: '/cles-api',
+  path: '/cles-api',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -162,10 +181,13 @@ export interface FileRoutesByFullPath {
   '/suivi': typeof SuiviRoute
   '/tarifs': typeof TarifsRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/cles-api': typeof AuthenticatedClesApiRoute
+  '/commandes-api': typeof AuthenticatedCommandesApiRoute
   '/commercial': typeof AuthenticatedCommercialRoute
   '/comptes': typeof AuthenticatedComptesRoute
   '/equipe': typeof AuthenticatedEquipeRoute
   '/feuille-de-route': typeof AuthenticatedFeuilleDeRouteRoute
+  '/import': typeof AuthenticatedImportRoute
   '/livreur': typeof AuthenticatedLivreurRoute
   '/mes-colis': typeof AuthenticatedMesColisRoute
   '/mes-retours': typeof AuthenticatedMesRetoursRoute
@@ -186,10 +208,13 @@ export interface FileRoutesByTo {
   '/suivi': typeof SuiviRoute
   '/tarifs': typeof TarifsRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/cles-api': typeof AuthenticatedClesApiRoute
+  '/commandes-api': typeof AuthenticatedCommandesApiRoute
   '/commercial': typeof AuthenticatedCommercialRoute
   '/comptes': typeof AuthenticatedComptesRoute
   '/equipe': typeof AuthenticatedEquipeRoute
   '/feuille-de-route': typeof AuthenticatedFeuilleDeRouteRoute
+  '/import': typeof AuthenticatedImportRoute
   '/livreur': typeof AuthenticatedLivreurRoute
   '/mes-colis': typeof AuthenticatedMesColisRoute
   '/mes-retours': typeof AuthenticatedMesRetoursRoute
@@ -212,10 +237,13 @@ export interface FileRoutesById {
   '/suivi': typeof SuiviRoute
   '/tarifs': typeof TarifsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/cles-api': typeof AuthenticatedClesApiRoute
+  '/_authenticated/commandes-api': typeof AuthenticatedCommandesApiRoute
   '/_authenticated/commercial': typeof AuthenticatedCommercialRoute
   '/_authenticated/comptes': typeof AuthenticatedComptesRoute
   '/_authenticated/equipe': typeof AuthenticatedEquipeRoute
   '/_authenticated/feuille-de-route': typeof AuthenticatedFeuilleDeRouteRoute
+  '/_authenticated/import': typeof AuthenticatedImportRoute
   '/_authenticated/livreur': typeof AuthenticatedLivreurRoute
   '/_authenticated/mes-colis': typeof AuthenticatedMesColisRoute
   '/_authenticated/mes-retours': typeof AuthenticatedMesRetoursRoute
@@ -238,10 +266,13 @@ export interface FileRouteTypes {
     | '/suivi'
     | '/tarifs'
     | '/admin'
+    | '/cles-api'
+    | '/commandes-api'
     | '/commercial'
     | '/comptes'
     | '/equipe'
     | '/feuille-de-route'
+    | '/import'
     | '/livreur'
     | '/mes-colis'
     | '/mes-retours'
@@ -262,10 +293,13 @@ export interface FileRouteTypes {
     | '/suivi'
     | '/tarifs'
     | '/admin'
+    | '/cles-api'
+    | '/commandes-api'
     | '/commercial'
     | '/comptes'
     | '/equipe'
     | '/feuille-de-route'
+    | '/import'
     | '/livreur'
     | '/mes-colis'
     | '/mes-retours'
@@ -287,10 +321,13 @@ export interface FileRouteTypes {
     | '/suivi'
     | '/tarifs'
     | '/_authenticated/admin'
+    | '/_authenticated/cles-api'
+    | '/_authenticated/commandes-api'
     | '/_authenticated/commercial'
     | '/_authenticated/comptes'
     | '/_authenticated/equipe'
     | '/_authenticated/feuille-de-route'
+    | '/_authenticated/import'
     | '/_authenticated/livreur'
     | '/_authenticated/mes-colis'
     | '/_authenticated/mes-retours'
@@ -436,6 +473,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLivreurRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/import': {
+      id: '/_authenticated/import'
+      path: '/import'
+      fullPath: '/import'
+      preLoaderRoute: typeof AuthenticatedImportRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/feuille-de-route': {
       id: '/_authenticated/feuille-de-route'
       path: '/feuille-de-route'
@@ -464,6 +508,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCommercialRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/commandes-api': {
+      id: '/_authenticated/commandes-api'
+      path: '/commandes-api'
+      fullPath: '/commandes-api'
+      preLoaderRoute: typeof AuthenticatedCommandesApiRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/cles-api': {
+      id: '/_authenticated/cles-api'
+      path: '/cles-api'
+      fullPath: '/cles-api'
+      preLoaderRoute: typeof AuthenticatedClesApiRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
@@ -483,10 +541,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedClesApiRoute: typeof AuthenticatedClesApiRoute
+  AuthenticatedCommandesApiRoute: typeof AuthenticatedCommandesApiRoute
   AuthenticatedCommercialRoute: typeof AuthenticatedCommercialRoute
   AuthenticatedComptesRoute: typeof AuthenticatedComptesRoute
   AuthenticatedEquipeRoute: typeof AuthenticatedEquipeRoute
   AuthenticatedFeuilleDeRouteRoute: typeof AuthenticatedFeuilleDeRouteRoute
+  AuthenticatedImportRoute: typeof AuthenticatedImportRoute
   AuthenticatedLivreurRoute: typeof AuthenticatedLivreurRoute
   AuthenticatedMesColisRoute: typeof AuthenticatedMesColisRoute
   AuthenticatedMesRetoursRoute: typeof AuthenticatedMesRetoursRoute
@@ -501,10 +562,13 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedClesApiRoute: AuthenticatedClesApiRoute,
+  AuthenticatedCommandesApiRoute: AuthenticatedCommandesApiRoute,
   AuthenticatedCommercialRoute: AuthenticatedCommercialRoute,
   AuthenticatedComptesRoute: AuthenticatedComptesRoute,
   AuthenticatedEquipeRoute: AuthenticatedEquipeRoute,
   AuthenticatedFeuilleDeRouteRoute: AuthenticatedFeuilleDeRouteRoute,
+  AuthenticatedImportRoute: AuthenticatedImportRoute,
   AuthenticatedLivreurRoute: AuthenticatedLivreurRoute,
   AuthenticatedMesColisRoute: AuthenticatedMesColisRoute,
   AuthenticatedMesRetoursRoute: AuthenticatedMesRetoursRoute,

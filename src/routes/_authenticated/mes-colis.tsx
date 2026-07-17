@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Package, Plus, Loader2, Search, Eye, TrendingUp, Clock, CheckCircle2, XCircle,
-  Download, Copy, Printer, Zap, Filter as FilterIcon, Pencil, ChevronDown,
+  Download, Upload, Copy, Printer, Zap, Filter as FilterIcon, Pencil, ChevronDown,
   ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -110,7 +110,7 @@ function MesColisPage() {
         case "statut": return c.statut || "";
         case "destinataire": return c.destinataire_nom || "";
         case "commune": return c.destinataire_wilaya || "";
-        case "total": return Number(c.prix_colis ?? 0) + Number(c.prix ?? 0);
+        case "total": return Number(c.prix_colis ?? 0);
         case "date":
         default: return new Date(c.date_creation).getTime();
       }
@@ -224,6 +224,11 @@ function MesColisPage() {
                   disabled={rowsForActions.length === 0}
                 >
                   <Download className="mr-2 h-4 w-4" /> Exporter
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/import" className="flex w-full cursor-pointer items-center">
+                    <Upload className="mr-2 h-4 w-4" /> Importer depuis Excel
+                  </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -355,7 +360,7 @@ function MesColisPage() {
                     <SortableTh label="Destinataire" k="destinataire" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                     <SortableTh label="Commune" k="commune" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                     <SortableTh label="Date" k="date" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                    <SortableTh label="Total" k="total" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                    <SortableTh label="Prix colis" k="total" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
                     <th className="px-3 py-3 text-right">Action</th>
                   </tr>
                 </thead>
@@ -407,7 +412,7 @@ function MesColisPage() {
                           {new Date(c.date_creation).toLocaleDateString("fr-FR")}
                         </td>
                         <td className="px-3 py-3 text-right font-bold">
-                          {Number(c.prix_colis ?? 0) + Number(c.prix ?? 0)} DA
+                          {Number(c.prix_colis ?? 0)} DA
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-end gap-1">

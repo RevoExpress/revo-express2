@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Undo2, Loader2, Search, Eye, Download, XCircle, RefreshCw, AlertTriangle } from "lucide-react";
+import { Undo2, Loader2, Search, Eye, Download, Upload, XCircle, RefreshCw, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -91,6 +91,11 @@ function MesRetoursPage() {
             >
               <Download className="h-4 w-4" /> Exporter ({filtered.length})
             </Button>
+            <Link to="/import">
+              <Button variant="outline" className="gap-2">
+                <Upload className="h-4 w-4" /> Import Excel
+              </Button>
+            </Link>
             <Link to="/mes-colis">
               <Button variant="ghost" className="gap-2">
                 <RefreshCw className="h-4 w-4" /> Voir tous mes colis

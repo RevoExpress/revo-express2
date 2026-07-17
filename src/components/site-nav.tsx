@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Menu, X, LogOut, User as UserIcon, Download, ArrowRight, Plus, Package, Undo2, Search } from "lucide-react";
+import { Menu, X, LogOut, User as UserIcon, Download, ArrowRight, Plus, Package, Undo2, Search, Inbox } from "lucide-react";
 import { useAuth, homeForRole } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { Button } from "@/components/ui/button";
@@ -83,6 +83,15 @@ export function SiteNav() {
     { to: "/suivi", label: t("nav.suivi") },
   ];
   if (user) navItems.push({ to: "/mes-colis", label: t("nav.dashboard") });
+
+  // Liens réservés aux espaces internes
+  if (role === "admin") {
+    navItems.push({ to: "/comptes", label: "Gestion des comptes" });
+    navItems.push({ to: "/cles-api", label: "Clés API" });
+  }
+  if (role === "admin" || role === "admin_commercial" || role === "commercial") {
+    navItems.push({ to: "/prospection", label: "Prospection" });
+  }
 
   const spaceLabel =
     role === "admin" ? t("nav.space.admin")
@@ -168,6 +177,12 @@ export function SiteNav() {
                     <Link to="/mes-retours" className="flex w-full cursor-pointer items-center gap-2">
                       <Undo2 className="h-4 w-4 text-destructive" />
                       <span className="font-semibold">{t("nav.quick.myreturns")}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/commandes-api" className="flex w-full cursor-pointer items-center gap-2">
+                      <Inbox className="h-4 w-4 text-primary" />
+                      <span className="font-semibold">Commandes web</span>
                     </Link>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
