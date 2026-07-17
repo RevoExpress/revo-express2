@@ -1,13 +1,17 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Menu, X, LogOut, User as UserIcon, Download, ArrowRight, Plus, Package, Undo2, Search, Inbox } from "lucide-react";
+import { Menu, X, LogOut, User as UserIcon, Download, ArrowRight, Plus, Package, Undo2, Search, Inbox, Loader2 } from "lucide-react";
 import { useAuth, homeForRole } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { NotificationsBell } from "@/components/notifications-bell";
+import { STATUTS } from "@/lib/tarifs";
+import { TrackingBadge } from "@/components/tracking-badge";
+import { ColisHistoriqueModal } from "@/components/colis-historique-modal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +45,9 @@ export function SiteNav() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [searchError, setSearchError] = useState(false);
+  const [searchBusy, setSearchBusy] = useState(false);
+  const [results, setResults] = useState<any[] | null>(null);
+  const [histo, setHisto] = useState<{ tracking: string; type_colis?: string | null } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { canInstall, install } = useInstallPrompt();
@@ -61,17 +68,62 @@ export function SiteNav() {
     return () => window.removeEventListener("keydown", onKey);
   }, [searchOpen]);
 
-  function submitSearch(e: React.FormEvent) {
+  function closeSearch() {
+    setSearchOpen(false);
+    setSearchValue("");
+    setResults(null);
+    setSearchError(false);
+  }
+
+  async function submitSearch(e: React.FormEvent) {
     e.preventDefault();
-    const code = normalizeTracking(searchValue);
-    if (!code) {
+    const q = searchValue.trim();
+    if (!q) return;
+
+    // Visiteur non connecté : tracking uniquement (confidentialité)
+    if (!user) {
+      const code = normalizeTracking(q);
+      if (!code) {
+        setSearchError(true);
+        return;
+      }
+      closeSearch();
+      navigate({ to: "/track/$code", params: { code } });
+      return;
+    }
+
+    // Connecté : recherche multi-critères dans ce que le compte a le droit de voir (RLS)
+    setSearchBusy(true);
+    setSearchError(false);
+    const safe = q.replace(/[,()]/g, " ").trim();
+    const pattern = `%${safe}%`;
+    const { data, error } = await supabase
+      .from("colis")
+      .select("id, tracking, type_colis, statut, destinataire_nom, destinataire_tel, destinataire_wilaya, date_creation")
+      .or(
+        [
+          `tracking.ilike.${pattern}`,
+          `destinataire_nom.ilike.${pattern}`,
+          `destinataire_tel.ilike.${pattern}`,
+          `destinataire_adresse.ilike.${pattern}`,
+          `destinataire_wilaya.ilike.${pattern}`,
+          `description.ilike.${pattern}`,
+          `expediteur_nom.ilike.${pattern}`,
+        ].join(","),
+      )
+      .order("date_creation", { ascending: false })
+      .limit(10);
+    setSearchBusy(false);
+
+    if (error) {
       setSearchError(true);
       return;
     }
-    setSearchError(false);
-    setSearchOpen(false);
-    setSearchValue("");
-    navigate({ to: "/track/$code", params: { code } });
+    setResults(data ?? []);
+  }
+
+  function statutLabel(key: string) {
+    return STATUTS.find((s) => s.key === key)?.label ?? key;
   }
 
   const navItems: Array<{ to: string; label: string; isAnchor?: boolean }> = [
@@ -131,7 +183,7 @@ export function SiteNav() {
           <div className="flex shrink-0 items-center gap-0.5">
             <button
               type="button"
-              onClick={() => { setSearchError(false); setSearchOpen(true); }}
+              onClick={() => { setSearchError(false); setResults(null); setSearchOpen(true); }}
               aria-label="Rechercher un colis"
               title="Rechercher un colis"
               className={iconBtn}
@@ -247,50 +299,93 @@ export function SiteNav() {
       {/* Fenêtre de recherche (loupe) */}
       {searchOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-24"
-          onClick={() => setSearchOpen(false)}
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-16"
+          onClick={closeSearch}
         >
           <div
-            className="w-full max-w-md rounded-xl border border-border bg-card p-4 shadow-soft"
+            className="w-full max-w-xl rounded-xl border border-border bg-card p-4 shadow-soft"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-bold">Rechercher un colis</h2>
               <button
-                onClick={() => setSearchOpen(false)}
+                onClick={closeSearch}
                 aria-label="Fermer"
                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <form onSubmit={submitSearch} className="flex gap-2">
+            <form onSubmit={(e) => void submitSearch(e)} className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   ref={searchInputRef}
                   value={searchValue}
                   onChange={(e) => { setSearchValue(e.target.value); if (searchError) setSearchError(false); }}
-                  placeholder="REV-ABC123"
+                  placeholder={user ? "Tracking, nom, téléphone, adresse, produit…" : "REV-ABC123"}
                   autoComplete="off"
                   spellCheck={false}
-                  className="h-11 w-full rounded-lg border border-input bg-background pl-9 pr-3 font-mono text-sm font-bold uppercase outline-none focus:border-primary"
+                  className={`h-11 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm font-bold outline-none focus:border-primary ${user ? "" : "font-mono uppercase"}`}
                 />
               </div>
-              <Button type="submit" className="h-11 gap-2 bg-gradient-primary px-5 font-bold shadow-glow">
-                Suivre
+              <Button type="submit" disabled={searchBusy} className="h-11 gap-2 bg-gradient-primary px-5 font-bold shadow-glow">
+                {searchBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                Rechercher
               </Button>
             </form>
             {searchError && (
               <p className="mt-2 text-sm text-destructive">
-                Numéro non reconnu — il ressemble à REV-ABC123.
+                {user ? "Recherche impossible — réessayez." : "Numéro non reconnu — il ressemble à REV-ABC123."}
               </p>
             )}
-            <p className="mt-2 text-xs text-muted-foreground">
-              Recherche par numéro de tracking. Pour chercher par nom ou téléphone, utilisez la barre de recherche de votre espace.
-            </p>
+            {!user && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Recherche par numéro de tracking. Connectez-vous pour chercher par nom, téléphone ou adresse.
+              </p>
+            )}
+
+            {/* Résultats (comptes connectés) — clic = fenêtre de suivi */}
+            {user && results !== null && (
+              <div className="mt-3 max-h-[50vh] overflow-y-auto rounded-lg border border-border">
+                {results.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-muted-foreground">
+                    Aucun colis trouvé pour « {searchValue} ».
+                  </div>
+                ) : (
+                  results.map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => setHisto({ tracking: r.tracking, type_colis: r.type_colis })}
+                      className="flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-muted/40"
+                    >
+                      <span className="shrink-0 rounded-md bg-info/15 px-2 py-0.5 font-mono text-xs font-bold text-info">
+                        {r.tracking}
+                      </span>
+                      <TrackingBadge typeColis={r.type_colis} />
+                      <span className="min-w-0 flex-1 truncate text-sm">
+                        <span className="font-medium">{r.destinataire_nom}</span>
+                        <span className="text-muted-foreground"> — {r.destinataire_tel}</span>
+                      </span>
+                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
+                        {statutLabel(r.statut)}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </div>
         </div>
+      )}
+
+      {/* Fenêtre de suivi (résultat cliqué) */}
+      {histo && (
+        <ColisHistoriqueModal
+          tracking={histo.tracking}
+          typeColis={histo.type_colis}
+          onClose={() => setHisto(null)}
+        />
       )}
 
       {/* Menu latéral */}
