@@ -11,6 +11,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { STATUTS } from "@/lib/tarifs";
 import { exportColisToXLSX } from "@/lib/export-csv";
 import { TrackingBadge } from "@/components/tracking-badge";
+import { TrackingActions } from "@/components/tracking-actions";
 import { cn } from "@/lib/utils";
 import { AdminStats } from "@/components/admin-stats";
 import { ColisCommentaires } from "@/components/colis-commentaires";
@@ -215,6 +216,7 @@ function AdminPage() {
                 <th className="px-3 py-3 text-left">Statut</th>
                 <th className="px-3 py-3 text-center">Notes</th>
                 <th className="px-3 py-3 text-right">Prix</th>
+                <th className="px-3 py-3 text-right sticky right-0 bg-muted">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -279,11 +281,16 @@ function AdminPage() {
                       </button>
                     </td>
                     <td className="px-3 py-2 text-right font-bold">{c.prix} DA</td>
+                    <td className="px-3 py-2 text-right sticky right-0 bg-card">
+                      <div className="flex justify-end">
+                        <TrackingActions colis={c} />
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
               {colisAffiches.length === 0 && (
-                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">
+                <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">
                   <Package className="mx-auto mb-2 h-8 w-8" /> Aucun colis trouvé
                 </td></tr>
               )}

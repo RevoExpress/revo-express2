@@ -5,10 +5,12 @@ import logoLight from "@/assets/logo-light.png";
 
 type Colis = {
   tracking: string;
+  client_id?: string | null;
+  code_client?: string | null;
   expediteur_nom: string;
   expediteur_tel: string;
   expediteur_adresse: string;
-  expediteur_commune?: string | null; // commune de ramassage
+  expediteur_commune?: string | null;
   destinataire_nom: string;
   destinataire_tel: string;
   destinataire_adresse: string;
@@ -16,156 +18,160 @@ type Colis = {
   destinataire_cp?: string | null;
   description?: string | null;
   depart?: string | null;
-  prix: number;              // frais de livraison
-  prix_colis?: number | null; // prix du produit (COD produit)
+  prix: number;
+  prix_colis?: number | null;
   type_livraison?: string | null;
-  type_colis?: string | null; // "REV" | "SPL" | "ECH" (marquage)
-  produit_retour?: string | null; // produit à récupérer (ECH) / renvoyer (SPL)
+  type_colis?: string | null;
+  produit_retour?: string | null;
   notes?: string | null;
 };
 
-// Badge de type d'envoi (échange / split) — bien visible
-function TypeBadge({ type }: { type?: string | null }) {
-  if (!type || type === "REV") return null;
-  const label = type === "ECH" ? "ÉCHANGE" : type === "SPL" ? "SPLIT (retour partiel)" : type;
-  return (
-    <div
-      className="mb-3 rounded-md border-2 border-black px-2 py-1 text-center text-sm font-black uppercase tracking-wide"
-      style={{ background: "#000", color: "#fff" }}
-    >
-      {label}
-    </div>
-  );
+function crCode(colis: Colis): string {
+  if (colis.code_client) return colis.code_client;
+  if (colis.client_id) return colis.client_id.replace(/-/g, "").slice(-6).toUpperCase();
+  return "------";
 }
 
 export function Bordereau({ colis }: { colis: Colis }) {
-  const dateStr = new Date().toLocaleDateString("fr-FR").replaceAll("/", "-");
-  // Montant unique : produit + livraison fusionnés, jamais détaillés sur le bordereau
+  const dateStr = new Date().toLocaleDateString("fr-FR");
   const totalEncaisser = Number(colis.prix_colis ?? 0) + Number(colis.prix ?? 0);
+  const isUrgent = colis.type_livraison === "urgent";
+  const bandColor = isUrgent ? "#dc2626" : "#f97316";
+  const bandLabel = isUrgent ? "URGENT" : "STANDARD";
+  const cr = crCode(colis);
+  const isRetour = colis.type_colis === "ECH" || colis.type_colis === "SPL";
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://revo-express.com";
 
   return (
     <div
       id="bordereau-print"
+      className="bordereau-sheet"
       dir="ltr"
-      className="mx-auto max-w-[400px] rounded-2xl border border-gray-300 bg-white p-5 text-black"
-      style={{ fontFamily: "Arial, sans-serif", color: "#000" }}
+      style={{
+        fontFamily: "Arial, sans-serif",
+        color: "#000",
+        background: "#fff",
+        width: "105mm",
+        height: "148.5mm",
+        border: "1px solid #d4d4d4",
+        borderRadius: 4,
+        boxSizing: "border-box",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        flexShrink: 0,
+      }}
     >
-      {/* En-tête : logo (gauche) + QR (droite) */}
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <img src={logoLight} alt="REVO EXPRESS" className="h-14 w-auto" />
-          <div className="mt-2 text-[11px] leading-tight text-gray-700">
-            <div className="font-semibold">SARL Revo Express <span className="font-normal text-gray-400">| Livraison same-day · Alger</span></div>
-            <div className="mt-1 flex items-center gap-1">
-              <Phone className="h-3 w-3" strokeWidth={2.5} />
-              <span className="font-semibold">07 93 46 18 77</span>
+      {/* Bande STANDARD / URGENT */}
+      <div style={{
+        background: bandColor, color: "#fff", padding: "4px 8px",
+        fontWeight: 900, fontSize: "12px", letterSpacing: "0.25em",
+        textAlign: "center", flexShrink: 0,
+      }}>
+        {bandLabel}
+      </div>
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "3mm", gap: "2.5mm", minHeight: 0 }}>
+        {/* Logo + QR */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <img src={logoLight} alt="REVO EXPRESS" style={{ height: "36px", width: "auto", display: "block" }} />
+            <div style={{ fontSize: "7px", lineHeight: 1.3, color: "#333", marginTop: 2 }}>
+              <div style={{ fontWeight: 700 }}>SARL Revo Express</div>
+              <div>07 93 46 18 77</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+            <QRCodeSVG value={`${origin}/track/${colis.tracking}`} size={54} level="M" includeMargin={false} />
+            <div style={{ fontSize: "5.5px", fontWeight: 700, letterSpacing: "0.1em", color: "#555", marginTop: 1 }}>SCAN</div>
+          </div>
+        </div>
+
+        {/* Badge retour */}
+        {isRetour && (
+          <div style={{ background: "#000", color: "#fff", padding: "2px 6px", borderRadius: 3, textAlign: "center", fontSize: "9px", fontWeight: 900, letterSpacing: "0.15em" }}>
+            {colis.type_colis === "ECH" ? "ÉCHANGE" : "SPLIT"}
+          </div>
+        )}
+        {isRetour && (
+          <div style={{ border: "1px solid #000", background: "#f5f5f5", borderRadius: 3, padding: "3px 5px" }}>
+            <div style={{ fontSize: "6px", fontWeight: 700, textTransform: "uppercase", color: "#555" }}>
+              {colis.type_colis === "ECH" ? "Produit à récupérer" : "Produit à renvoyer"}
+            </div>
+            <div style={{ fontSize: "9px", fontWeight: 700 }}>{colis.produit_retour || "(non précisé)"}</div>
+          </div>
+        )}
+
+        {/* Expéditeur + Destinataire côte à côte */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2mm" }}>
+          <div style={{ border: "1px solid #d4d4d4", borderRadius: 3, padding: "4px 5px", minWidth: 0 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <div style={{ fontSize: "6px", fontWeight: 700, textTransform: "uppercase", color: "#555" }}>Expéditeur</div>
+              <div style={{ fontSize: "6px", fontWeight: 800, fontFamily: "monospace" }}>CR:{cr}</div>
+            </div>
+            <div style={{ fontSize: "9px", fontWeight: 700, marginTop: 1, wordBreak: "break-word", lineHeight: 1.15 }}>{colis.expediteur_nom}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 2, fontSize: "7.5px", color: "#333", marginTop: 2 }}>
+              <Phone style={{ width: 8, height: 8, flexShrink: 0 }} strokeWidth={2.5} />
+              <span>{colis.expediteur_tel}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 2, fontSize: "7px", color: "#555", marginTop: 2, lineHeight: 1.25 }}>
+              <MapPin style={{ width: 8, height: 8, flexShrink: 0, marginTop: 1 }} strokeWidth={2.5} />
+              <span>Ramassage : {colis.expediteur_commune || colis.depart || "—"}</span>
+            </div>
+          </div>
+
+          <div style={{ border: "1px solid #d4d4d4", borderRadius: 3, padding: "4px 5px", minWidth: 0 }}>
+            <div style={{ fontSize: "6px", fontWeight: 700, textTransform: "uppercase", color: "#555" }}>Destinataire</div>
+            <div style={{ fontSize: "9px", fontWeight: 700, marginTop: 1, wordBreak: "break-word", lineHeight: 1.15 }}>{colis.destinataire_nom}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 2, fontSize: "7.5px", color: "#333", marginTop: 2 }}>
+              <Phone style={{ width: 8, height: 8, flexShrink: 0 }} strokeWidth={2.5} />
+              <span>{colis.destinataire_tel}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 2, fontSize: "7px", color: "#555", marginTop: 2, lineHeight: 1.25 }}>
+              <MapPin style={{ width: 8, height: 8, flexShrink: 0, marginTop: 1 }} strokeWidth={2.5} />
+              <span>{colis.destinataire_adresse}{colis.destinataire_wilaya ? `, ${colis.destinataire_wilaya}` : ""}</span>
             </div>
           </div>
         </div>
-        <div className="flex flex-col items-center">
-          <QRCodeSVG
-            value={`${typeof window !== "undefined" ? window.location.origin : ""}/track/${colis.tracking}`}
-            size={70}
-            level="M"
-            includeMargin={false}
-          />
-          <div className="mt-0.5 text-[8px] font-semibold uppercase tracking-wider text-gray-500">Scan</div>
+
+        {/* Code-barres */}
+        <div style={{ textAlign: "center" }}>
+          <Barcode value={colis.tracking} height={40} fontSize={0} displayValue={false} margin={0} width={1.6} />
+          <div style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 700, letterSpacing: "0.15em", marginTop: 2 }}>{colis.tracking}</div>
         </div>
-      </div>
 
-      <TypeBadge type={colis.type_colis} />
-
-      {/* Produit à récupérer (ECH) / à renvoyer (SPL) — visible sur le retour */}
-      {(colis.type_colis === "ECH" || colis.type_colis === "SPL") && (
-        <div className="mb-3 rounded-lg border-2 border-black bg-gray-100 p-2 text-sm">
-          <div className="text-[10px] font-bold uppercase text-gray-700">
-            {colis.type_colis === "ECH" ? "Produit à récupérer" : "Produit à renvoyer au vendeur"}
-          </div>
-          <div className="font-bold">{colis.produit_retour || "(non précisé)"}</div>
+        {/* Montant */}
+        <div style={{ border: "1.5px solid #000", borderRadius: 6, padding: "5px 8px", textAlign: "center" }}>
+          <div style={{ fontSize: "7px", fontWeight: 700, textTransform: "uppercase", color: "#555" }}>Montant à encaisser</div>
+          <div style={{ fontSize: "22px", fontWeight: 900, lineHeight: 1, marginTop: 2 }}>{totalEncaisser.toLocaleString("fr-FR")} DA</div>
         </div>
-      )}
 
-      {/* Expéditeur + Destinataire côte à côte */}
-      <div className="mb-4 grid grid-cols-2 gap-3">
-        {/* Expéditeur */}
-        <div className="rounded-xl border border-gray-300 p-3">
-          <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-gray-500">Expéditeur</div>
-          <div className="text-sm font-bold">{colis.expediteur_nom}</div>
-          <div className="mt-1 flex items-center gap-1 text-xs text-gray-700">
-            <Phone className="h-3 w-3 shrink-0" strokeWidth={2.5} />
-            <span>{colis.expediteur_tel}</span>
+        {/* Contenu + Départ */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2mm", marginTop: "auto" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+            <Package style={{ width: 9, height: 9, flexShrink: 0, color: "#555", marginTop: 1 }} strokeWidth={2} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: "6px", fontWeight: 700, textTransform: "uppercase", color: "#555" }}>Contenu</div>
+              <div style={{ fontSize: "8px", overflow: "hidden", textOverflow: "ellipsis" }}>{colis.description || "Colis"}</div>
+            </div>
           </div>
-          <div className="mt-1 flex items-start gap-1 text-xs text-gray-700">
-            <MapPin className="mt-0.5 h-3 w-3 shrink-0" strokeWidth={2.5} />
-            <span>Ramassage : {colis.expediteur_commune || colis.expediteur_adresse}</span>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+            <MapPin style={{ width: 9, height: 9, flexShrink: 0, color: "#555", marginTop: 1 }} strokeWidth={2} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: "6px", fontWeight: 700, textTransform: "uppercase", color: "#555" }}>Départ</div>
+              <div style={{ fontSize: "8px" }}>{colis.depart || "—"}</div>
+            </div>
           </div>
         </div>
-        {/* Destinataire */}
-        <div className="rounded-xl border border-gray-300 p-3">
-          <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-gray-500">Destinataire</div>
-          <div className="text-sm font-bold">{colis.destinataire_nom}</div>
-          <div className="mt-1 flex items-center gap-1 text-xs text-gray-700">
-            <Phone className="h-3 w-3 shrink-0" strokeWidth={2.5} />
-            <span>{colis.destinataire_tel}</span>
+
+        {/* Date + Signature */}
+        <div style={{ borderTop: "1px solid #e5e5e5", paddingTop: "2px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 2, fontSize: "8px" }}>
+            <Calendar style={{ width: 9, height: 9, color: "#555" }} strokeWidth={2} />
+            <span>{dateStr}</span>
           </div>
-          <div className="mt-1 flex items-start gap-1 text-xs text-gray-700">
-            <MapPin className="mt-0.5 h-3 w-3 shrink-0" strokeWidth={2.5} />
-            <span>{colis.destinataire_adresse}{colis.destinataire_wilaya ? `, ${colis.destinataire_wilaya}` : ""}</span>
-          </div>
+          <div style={{ fontSize: "8px", fontWeight: 700, color: "#555" }}>SIGNATURE</div>
         </div>
-      </div>
-
-      {/* Code-barres + tracking */}
-      <div className="mb-4 text-center">
-        <Barcode value={colis.tracking} height={56} fontSize={0} displayValue={false} margin={0} width={2} />
-        <div className="mt-1 font-mono text-xl font-bold tracking-[0.2em]">{colis.tracking}</div>
-      </div>
-
-      {/* Montant à encaisser — UN SEUL chiffre, jamais de détail */}
-      <div className="mb-4 rounded-xl border border-gray-300 py-3 text-center">
-        <div className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Montant à encaisser</div>
-        <div className="text-3xl font-black leading-none">{totalEncaisser.toLocaleString("fr-FR")} DA</div>
-      </div>
-
-      {/* Contenu + Départ côte à côte (avec icônes) */}
-      <div className="mb-3 grid grid-cols-2 gap-3 border-t border-gray-200 pt-3">
-        <div className="flex items-start gap-2">
-          <Package className="mt-0.5 h-4 w-4 shrink-0 text-gray-600" strokeWidth={2} />
-          <div>
-            <div className="text-[10px] font-bold uppercase text-gray-500">Contenu</div>
-            <div className="text-sm">{colis.description || "Colis"}</div>
-          </div>
-        </div>
-        <div className="flex items-start gap-2">
-          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gray-600" strokeWidth={2} />
-          <div>
-            <div className="text-[10px] font-bold uppercase text-gray-500">Départ</div>
-            <div className="text-sm">{colis.depart || "—"}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Note optionnelle */}
-      {colis.notes && (
-        <div className="mb-3 rounded-lg bg-gray-50 p-2 text-xs">
-          <span className="font-bold">Note :</span> {colis.notes}
-        </div>
-      )}
-
-      {/* Date + Signature */}
-      <div className="mb-3 grid grid-cols-2 gap-3 border-t border-gray-200 pt-3">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 shrink-0 text-gray-600" strokeWidth={2} />
-          <span className="text-sm font-medium">LE : {dateStr}</span>
-        </div>
-        <div className="text-right text-sm font-bold text-gray-700">SIGNATURE</div>
-      </div>
-
-      {/* Mention légale */}
-      <div className="border-t border-gray-200 pt-2 text-[8px] leading-snug text-gray-500">
-        Je, {colis.expediteur_nom}, certifie que les détails déclarés sur ce bordereau sont corrects et que le colis ne
-        contient aucun produit dangereux ou interdit par la loi, et déclare avoir lu et approuvé les conditions générales
-        de transport SARL Revo Express.
       </div>
     </div>
   );

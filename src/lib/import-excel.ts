@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
 
-// Colonnes du modèle d'import (ordre et intitulés)
+// Modèle Revo téléchargeable — colonnes simples
 const COLUMNS = [
   "destinataire_nom",
   "destinataire_tel",
@@ -19,7 +19,6 @@ const HEADERS_FR: Record<string, string> = {
   description: "Description (optionnel)",
 };
 
-// Génère et télécharge un modèle Excel vierge (avec 1 ligne d'exemple)
 export function telechargerModeleImport() {
   const exemple = {
     "Nom du destinataire": "Ahmed Benali",
@@ -37,22 +36,79 @@ export function telechargerModeleImport() {
   XLSX.writeFile(wb, "modele-import-revo.xlsx");
 }
 
-// Parse un fichier Excel uploadé → tableau de lignes normalisées
+// Normalise un intitulé de colonne (accents, majuscules, espaces, ponctuation)
+// pour le comparer sans se soucier de la mise en forme exacte.
+function normalizeHeader(s: string): string {
+  return String(s)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+// Alias reconnus par champ interne — couvre le modèle Revo ET les exports
+// usuels des outils CRM / e-commerce des commerçants. Toute colonne du
+// fichier qui ne correspond à aucun alias est simplement ignorée.
+const FIELD_ALIASES: Record<string, string[]> = {
+  destinataire_nom: [
+    "nom du destinataire", "nom destinataire", "nom", "destinataire",
+    "customer name", "client", "full name", "fullname",
+  ],
+  destinataire_tel: [
+    "telephone", "tel", "telephone destinataire",
+    "customer phone", "phone", "numero", "num tel",
+  ],
+  destinataire_adresse: [
+    "adresse complete", "adresse", "customer address", "address",
+  ],
+  // Deux niveaux : "commune" est plus précis que "ville/wilaya",
+  // on privilégiera le plus précis s'ils sont tous les deux présents.
+  _ville_brute: ["wilaya", "city", "ville"],
+  _commune_brute: ["commune"],
+  prix_colis: [
+    "montant a encaisser da", "montant a encaisser", "montant",
+    "prix", "price", "cod",
+  ],
+  description: [
+    "description optionnel", "description", "produit", "designation",
+    "product name",
+  ],
+};
+const VARIANT_ALIASES = ["variant", "variante"];
+
+// Table [alias normalisé] -> champ interne, construite une seule fois
+const ALIAS_LOOKUP: Record<string, string> = {};
+for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
+  for (const alias of aliases) ALIAS_LOOKUP[normalizeHeader(alias)] = field;
+}
+const VARIANT_KEYS = VARIANT_ALIASES.map(normalizeHeader);
+
+// Parse un fichier Excel uploadé → tableau de lignes normalisées.
+// Reconnaît automatiquement le modèle Revo ET les exports des outils
+// de gestion de commandes des commerçants (colonnes en trop ignorées).
 export async function parserFichierImport(file: File): Promise<any[]> {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Record<string, any>>(ws);
-
-  // Remappe les intitulés FR vers les clés techniques
-  const reverse: Record<string, string> = {};
-  for (const key of COLUMNS) reverse[HEADERS_FR[key]] = key;
+  const rows = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: "" });
 
   return rows.map((r) => {
     const out: Record<string, any> = {};
-    for (const [frLabel, val] of Object.entries(r)) {
-      const key = reverse[frLabel] ?? frLabel;
-      out[key] = val;
+    let variant = "";
+    for (const [header, val] of Object.entries(r)) {
+      const norm = normalizeHeader(String(header));
+      const field = ALIAS_LOOKUP[norm];
+      if (field) {
+        if (out[field] === undefined || out[field] === "") out[field] = val;
+      } else if (VARIANT_KEYS.includes(norm)) {
+        variant = String(val ?? "").trim();
+      }
+    }
+    // La commune (précise) prime sur la ville/wilaya (générique)
+    out.destinataire_wilaya = out._commune_brute || out._ville_brute || "";
+    delete out._ville_brute;
+    delete out._commune_brute;
+    if (variant) {
+      out.description = [out.description, variant].filter(Boolean).join(" - ");
     }
     return out;
   });

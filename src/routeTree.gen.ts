@@ -34,6 +34,7 @@ import { Route as AuthenticatedCommercialRouteImport } from './routes/_authentic
 import { Route as AuthenticatedCommandesApiRouteImport } from './routes/_authenticated/commandes-api'
 import { Route as AuthenticatedClesApiRouteImport } from './routes/_authenticated/cles-api'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedPrintTrackingRouteImport } from './routes/_authenticated/print.$tracking'
 import { Route as AuthenticatedColisTrackingRouteImport } from './routes/_authenticated/colis.$tracking'
 
 const TarifsRoute = TarifsRouteImport.update({
@@ -166,6 +167,12 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedPrintTrackingRoute =
+  AuthenticatedPrintTrackingRouteImport.update({
+    id: '/print/$tracking',
+    path: '/print/$tracking',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedColisTrackingRoute =
   AuthenticatedColisTrackingRouteImport.update({
     id: '/colis/$tracking',
@@ -199,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/suivi-livreurs': typeof AuthenticatedSuiviLivreursRoute
   '/track/$code': typeof TrackCodeRoute
   '/colis/$tracking': typeof AuthenticatedColisTrackingRoute
+  '/print/$tracking': typeof AuthenticatedPrintTrackingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -226,6 +234,7 @@ export interface FileRoutesByTo {
   '/suivi-livreurs': typeof AuthenticatedSuiviLivreursRoute
   '/track/$code': typeof TrackCodeRoute
   '/colis/$tracking': typeof AuthenticatedColisTrackingRoute
+  '/print/$tracking': typeof AuthenticatedPrintTrackingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -255,6 +264,7 @@ export interface FileRoutesById {
   '/_authenticated/suivi-livreurs': typeof AuthenticatedSuiviLivreursRoute
   '/track/$code': typeof TrackCodeRoute
   '/_authenticated/colis/$tracking': typeof AuthenticatedColisTrackingRoute
+  '/_authenticated/print/$tracking': typeof AuthenticatedPrintTrackingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -284,6 +294,7 @@ export interface FileRouteTypes {
     | '/suivi-livreurs'
     | '/track/$code'
     | '/colis/$tracking'
+    | '/print/$tracking'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -311,6 +322,7 @@ export interface FileRouteTypes {
     | '/suivi-livreurs'
     | '/track/$code'
     | '/colis/$tracking'
+    | '/print/$tracking'
   id:
     | '__root__'
     | '/'
@@ -339,6 +351,7 @@ export interface FileRouteTypes {
     | '/_authenticated/suivi-livreurs'
     | '/track/$code'
     | '/_authenticated/colis/$tracking'
+    | '/_authenticated/print/$tracking'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -529,6 +542,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/print/$tracking': {
+      id: '/_authenticated/print/$tracking'
+      path: '/print/$tracking'
+      fullPath: '/print/$tracking'
+      preLoaderRoute: typeof AuthenticatedPrintTrackingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/colis/$tracking': {
       id: '/_authenticated/colis/$tracking'
       path: '/colis/$tracking'
@@ -558,6 +578,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedServiceClientRoute: typeof AuthenticatedServiceClientRoute
   AuthenticatedSuiviLivreursRoute: typeof AuthenticatedSuiviLivreursRoute
   AuthenticatedColisTrackingRoute: typeof AuthenticatedColisTrackingRoute
+  AuthenticatedPrintTrackingRoute: typeof AuthenticatedPrintTrackingRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -579,6 +600,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedServiceClientRoute: AuthenticatedServiceClientRoute,
   AuthenticatedSuiviLivreursRoute: AuthenticatedSuiviLivreursRoute,
   AuthenticatedColisTrackingRoute: AuthenticatedColisTrackingRoute,
+  AuthenticatedPrintTrackingRoute: AuthenticatedPrintTrackingRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

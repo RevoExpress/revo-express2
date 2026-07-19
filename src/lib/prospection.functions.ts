@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { COMMUNES, haversineKm, priceForDelivery } from "@/lib/tarifs";
 
 type AppRole =
   | "admin" | "directeur_commercial" | "admin_commercial" | "admin_operations"
@@ -68,7 +69,6 @@ export const listProspects = createServerFn({ method: "POST" })
     return { prospects: rows ?? [] };
   });
 
-// Changer l'étape d'un prospect (met à jour la relance)
 const UpdateEtapeInput = z.object({
   id: z.string().uuid(),
   etape: z.enum(ETAPES),
@@ -87,7 +87,6 @@ export const changerEtapeProspect = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// Marquer une relance (met à jour derniere_relance)
 export const marquerRelance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid(), note: z.string().max(1000).optional() }).parse(data))
@@ -101,7 +100,6 @@ export const marquerRelance = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// Convertir un prospect gagné en compte client (le prospect RESTE, lié)
 const ConvertProspectInput = z.object({
   prospect_id: z.string().uuid(),
   email: z.string().email(),
@@ -123,7 +121,6 @@ export const convertirProspectEnClient = createServerFn({ method: "POST" })
       .from("prospects").select("*").eq("id", data.prospect_id).single();
     if (!prospect) throw new Error("Prospect introuvable");
 
-    // Crée le compte client
     const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
       email: data.email, password: data.password, email_confirm: true,
       user_metadata: { nom: data.nom, nom_boutique: prospect.nom_boutique },
@@ -139,7 +136,6 @@ export const convertirProspectEnClient = createServerFn({ method: "POST" })
     await supabaseAdmin.from("user_roles").delete().eq("user_id", uid);
     await supabaseAdmin.from("user_roles").insert({ user_id: uid, role: "client" });
 
-    // Marque le prospect gagné + lien vers le client (le prospect RESTE)
     await supabaseAdmin.from("prospects")
       .update({ etape: "gagne", converti_client_id: uid, updated_at: new Date().toISOString() })
       .eq("id", data.prospect_id);
@@ -147,7 +143,6 @@ export const convertirProspectEnClient = createServerFn({ method: "POST" })
     return { ok: true, client_id: uid };
   });
 
-// Prospects à relancer (alerte)
 export const listProspectsARelancer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -187,15 +182,51 @@ export const affecterLivreurMasse = createServerFn({ method: "POST" })
 
 // ═══════════════════════════════════════════════════════════
 // IMPORT EXCEL — validation puis création
-// Le front parse le fichier Excel (xlsx) et envoie les lignes ;
-// cette fonction VALIDE et crée les colis en "en-preparation".
+// Accepte le modèle Revo ET les exports CRM des commerçants
+// (le parsing/mapping des colonnes se fait côté client, voir import-excel.ts).
+// La commune de départ vient TOUJOURS du profil, jamais du fichier.
 // ═══════════════════════════════════════════════════════════
+
+// Normalise une commune (accents/espaces/casse) pour la comparer sans
+// se soucier de la mise en forme exacte.
+function normalizeCommune(s: string): string {
+  return String(s ?? "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+// Alias supplémentaires pour les fautes/variantes d'écriture courantes
+// (en plus de la normalisation accents/espaces qui couvre déjà beaucoup de cas)
+const COMMUNE_ALIASES: Record<string, string> = {
+  "alger": "Alger Centre",
+  "algercentre": "Alger Centre",
+  "babezouar": "Bab Ezzouar",
+  "babzouar": "Bab Ezzouar",
+  "bordjkiffan": "Bordj El Kiffan",
+  "darbeida": "Dar El Beïda",
+  "birmradrais": "Bir Mourad Raïs",
+  "guedeconstantine": "Gué de Constantine",
+};
+
+// Retrouve la commune officielle (parmi les 57 d'Alger) correspondant
+// à une valeur brute du fichier importé, ou null si hors zone de couverture.
+function matchCommuneAlger(raw: string): string | null {
+  const norm = normalizeCommune(raw);
+  if (!norm) return null;
+  const direct = COMMUNES.find((c) => normalizeCommune(c.name) === norm);
+  if (direct) return direct.name;
+  const alias = COMMUNE_ALIASES[norm];
+  if (alias && COMMUNES.some((c) => c.name === alias)) return alias;
+  return null;
+}
+
 const ImportRow = z.object({
-  destinataire_nom: z.string().trim().min(1),
-  destinataire_tel: z.string().trim().min(6),
-  destinataire_adresse: z.string().trim().min(1),
-  destinataire_wilaya: z.string().trim().optional(),
-  prix_colis: z.number().min(0),
+  destinataire_nom: z.string().trim().min(1, "Nom du destinataire manquant"),
+  destinataire_tel: z.string().trim().min(6, "Téléphone invalide"),
+  destinataire_adresse: z.string().trim().min(1, "Adresse manquante"),
+  destinataire_wilaya: z.string().trim().min(1, "Ville/commune manquante"),
+  prix_colis: z.number().min(0, "Prix invalide"),
   description: z.string().trim().optional(),
 });
 const ImportInput = z.object({ rows: z.array(z.any()).min(1) });
@@ -207,25 +238,50 @@ function genTracking() {
   return "REV-" + s;
 }
 
+type LigneOk = { ok: true; data: z.infer<typeof ImportRow> & { commune: string } };
+type LigneKo = { ok: false; message: string };
+
+// Valide une ligne : format des champs, puis correspondance de la
+// destination avec une commune d'Alger. Utilisé par validerImport ET
+// executerImport pour garantir exactement la même logique.
+function validerLigne(r: any): LigneOk | LigneKo {
+  const parsed = ImportRow.safeParse({
+    ...r,
+    prix_colis: typeof r.prix_colis === "string" ? Number(r.prix_colis) : r.prix_colis,
+  });
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Ligne invalide" };
+  }
+  const commune = matchCommuneAlger(parsed.data.destinataire_wilaya);
+  if (!commune) {
+    return { ok: false, message: `Destination hors zone de couverture (${parsed.data.destinataire_wilaya})` };
+  }
+  return { ok: true, data: { ...parsed.data, commune } };
+}
+
 // Valide les lignes SANS créer (prévisualisation des erreurs)
 export const validerImport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => ImportInput.parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { data: prof } = await supabaseAdmin
+      .from("profiles").select("adresse, ramassage_commune, wilaya").eq("id", context.userId).single();
+    const depart = matchCommuneAlger(prof?.ramassage_commune || prof?.wilaya || "");
+    if (!prof?.adresse || !depart) {
+      return {
+        total: data.rows.length, valides: 0,
+        erreurs: [{ ligne: 0, message: "Votre profil est incomplet (adresse ou commune de départ manquante) — complétez-le avant d'importer." }],
+      };
+    }
+
     const erreurs: { ligne: number; message: string }[] = [];
-    const valides: any[] = [];
+    let valides = 0;
     data.rows.forEach((r: any, i: number) => {
-      const parsed = ImportRow.safeParse({
-        ...r,
-        prix_colis: typeof r.prix_colis === "string" ? Number(r.prix_colis) : r.prix_colis,
-      });
-      if (!parsed.success) {
-        erreurs.push({ ligne: i + 2, message: parsed.error.issues[0]?.message ?? "Ligne invalide" });
-      } else {
-        valides.push(parsed.data);
-      }
+      const res = validerLigne(r);
+      if (res.ok) valides++;
+      else erreurs.push({ ligne: i + 2, message: res.message });
     });
-    return { total: data.rows.length, valides: valides.length, erreurs };
+    return { total: data.rows.length, valides, erreurs };
   });
 
 // Crée les colis après validation
@@ -238,32 +294,46 @@ export const executerImport = createServerFn({ method: "POST" })
     const isStaff = roles.some((r) => r === "admin" || r === "commercial" || r === "service_client" || r === "admin_service_client");
     if (!isClient && !isStaff) throw new Error("Forbidden");
 
-    // Profil expéditeur (le commerçant courant)
     const { data: prof } = await supabaseAdmin
-      .from("profiles").select("nom_boutique, nom, telephone, adresse, ramassage_commune").eq("id", context.userId).single();
+      .from("profiles")
+      .select("nom_boutique, nom, telephone, adresse, ramassage_commune, wilaya")
+      .eq("id", context.userId).single();
+
+    const depart = matchCommuneAlger(prof?.ramassage_commune || prof?.wilaya || "");
+    if (!prof?.adresse || !depart) {
+      return {
+        ok: false, created: 0,
+        erreurs: [{ ligne: 0, message: "Votre profil est incomplet (adresse ou commune de départ manquante) — complétez-le avant d'importer." }],
+      };
+    }
+    const departCommune = COMMUNES.find((c) => c.name === depart)!;
 
     let created = 0;
     const erreurs: { ligne: number; message: string }[] = [];
     for (let i = 0; i < data.rows.length; i++) {
-      const r: any = data.rows[i];
-      const parsed = ImportRow.safeParse({
-        ...r, prix_colis: typeof r.prix_colis === "string" ? Number(r.prix_colis) : r.prix_colis,
-      });
-      if (!parsed.success) { erreurs.push({ ligne: i + 2, message: "Ligne invalide" }); continue; }
-      const d = parsed.data;
+      const res = validerLigne(data.rows[i]);
+      if (!res.ok) { erreurs.push({ ligne: i + 2, message: res.message }); continue; }
+      const d = res.data;
+
+      const arriveeCommune = COMMUNES.find((c) => c.name === d.commune)!;
+      const km = Math.max(1, Math.round(haversineKm(departCommune, arriveeCommune) * 10) / 10);
+      const prix = priceForDelivery(km, "standard");
+
       const { error } = await supabaseAdmin.from("colis").insert({
         tracking: genTracking(),
         client_id: context.userId,
         expediteur_nom: prof?.nom_boutique || prof?.nom || "Boutique",
         expediteur_tel: prof?.telephone || "",
         expediteur_adresse: prof?.adresse || "",
-        expediteur_commune: prof?.ramassage_commune || null,
+        expediteur_commune: depart,
+        depart,
         destinataire_nom: d.destinataire_nom,
         destinataire_tel: d.destinataire_tel,
         destinataire_adresse: d.destinataire_adresse,
-        destinataire_wilaya: d.destinataire_wilaya ?? null,
+        destinataire_wilaya: d.commune,
+        distance_km: km,
+        prix,
         prix_colis: d.prix_colis,
-        prix: 0,
         type_livraison: "standard",
         type_colis: "REV",
         description: d.description ?? null,

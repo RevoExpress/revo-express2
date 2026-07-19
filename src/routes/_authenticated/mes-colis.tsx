@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Package, Plus, Loader2, Search, Eye, TrendingUp, Clock, CheckCircle2, XCircle,
+  Package, Plus, Loader2, Search, TrendingUp, Clock, CheckCircle2, XCircle,
   Download, Upload, Copy, Printer, Zap, Filter as FilterIcon, Pencil, ChevronDown,
   ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight,
 } from "lucide-react";
@@ -14,6 +14,7 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { TrackingBadge } from "@/components/tracking-badge";
 import { ColisHistoriqueModal } from "@/components/colis-historique-modal";
+import { TrackingActions } from "@/components/tracking-actions";
 import { STATUTS, COMMUNES } from "@/lib/tarifs";
 import { exportColisToXLSX } from "@/lib/export-csv";
 import {
@@ -162,7 +163,7 @@ function MesColisPage() {
   const printSelected = () => {
     if (rowsForActions.length === 0) return;
     if (rowsForActions.length === 1) {
-      window.open(`/colis/${rowsForActions[0].tracking}?print=1`, "_blank");
+      window.open(`/print/${rowsForActions[0].tracking}`, "_blank");
       return;
     }
     const ids = rowsForActions.map((c) => c.id).join(",");
@@ -426,16 +427,7 @@ function MesColisPage() {
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            <Link to="/colis/$tracking" params={{ tracking: c.tracking }}>
-                              <Button size="icon" variant="outline" className="h-8 w-8 text-info" title="Détails">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                            <Link to="/colis/$tracking" params={{ tracking: c.tracking }} search={{ print: 1 } as any}>
-                              <Button size="icon" variant="outline" className="h-8 w-8 text-info" title="Imprimer">
-                                <Printer className="h-4 w-4" />
-                              </Button>
-                            </Link>
+                            <TrackingActions colis={c} />
                             {c.statut === "en-preparation" && (
                               <Link to="/commander">
                                 <Button size="icon" variant="outline" className="h-8 w-8 text-muted-foreground" title="Modifier">
