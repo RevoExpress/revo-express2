@@ -1,10 +1,7 @@
 // REVO EXPRESS — tarifs, statuts et communes d'Alger
 
 // ─── TARIFS OFFICIELS ───────────────────────────────────────────
-// Standard : forfait 500 DA toutes distances
-// Urgent   : 1000 / 1300 / 1500 DA selon la distance
-
-export const STANDARD_PRICE = 500; // forfait standard, toutes distances
+export const STANDARD_PRICE = 500;
 
 export const TARIFFS = [
   { maxKm: 10, price: 1000 },
@@ -24,8 +21,6 @@ export function priceForDelivery(km: number, type: DeliveryType): number {
 }
 
 // ─── COD ────────────────────────────────────────────────────────
-// Par défaut, le destinataire paie produit + frais de livraison.
-// Si les frais sont payés par l'expéditeur, le COD = prix du produit seul.
 export function totalCOD(
   prixProduit: number,
   fraisLivraison: number,
@@ -41,6 +36,7 @@ export const STATUTS = [
   { key: "expedie", label: "Expédié", color: "info" },
   { key: "en-livraison", label: "En livraison", color: "info" },
   { key: "contact-client", label: "Contact client", color: "warning" },
+  { key: "client", label: "Client", color: "info" },
   { key: "livre", label: "Livré", color: "success" },
   { key: "reporte", label: "Reporté", color: "warning" },
   { key: "echec-livraison", label: "Échec de livraison", color: "destructive" },
@@ -50,8 +46,12 @@ export const STATUTS = [
 
 export type StatutKey = (typeof STATUTS)[number]["key"];
 
-// Renvoie les infos d'un statut, avec repli propre si la clé est inconnue
-// (ex. anciens colis de test créés avec les anciens statuts)
+// Statuts "fréquents" mis en avant dans le nouveau menu (gros boutons),
+// le reste va dans un second groupe repliable ("autres statuts").
+export const STATUTS_FREQUENTS: StatutKey[] = [
+  "en-preparation", "ramasse", "en-livraison", "livre",
+];
+
 export function statutInfo(key: string) {
   return (
     STATUTS.find((s) => s.key === key) ?? {
@@ -106,7 +106,6 @@ export const COMMUNES: Commune[] = [
   { name: "Zeralda", lat: 36.7058, lng: 2.8419 },
 ];
 
-// Distance Haversine (km)
 export function haversineKm(a: Commune, b: Commune): number {
   const R = 6371;
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -120,7 +119,6 @@ export function haversineKm(a: Commune, b: Commune): number {
   return 2 * R * Math.asin(Math.sqrt(x));
 }
 
-// Tracking style REV-XXXXXX
 export function generateTracking(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";

@@ -36,6 +36,7 @@ import { Route as AuthenticatedClesApiRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedPrintTrackingRouteImport } from './routes/_authenticated/print.$tracking'
 import { Route as AuthenticatedColisTrackingRouteImport } from './routes/_authenticated/colis.$tracking'
+import { Route as AuthenticatedBoutiqueIdRouteImport } from './routes/_authenticated/boutique.$id'
 
 const TarifsRoute = TarifsRouteImport.update({
   id: '/tarifs',
@@ -179,6 +180,11 @@ const AuthenticatedColisTrackingRoute =
     path: '/colis/$tracking',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedBoutiqueIdRoute = AuthenticatedBoutiqueIdRouteImport.update({
+  id: '/boutique/$id',
+  path: '/boutique/$id',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/service-client': typeof AuthenticatedServiceClientRoute
   '/suivi-livreurs': typeof AuthenticatedSuiviLivreursRoute
   '/track/$code': typeof TrackCodeRoute
+  '/boutique/$id': typeof AuthenticatedBoutiqueIdRoute
   '/colis/$tracking': typeof AuthenticatedColisTrackingRoute
   '/print/$tracking': typeof AuthenticatedPrintTrackingRoute
 }
@@ -233,6 +240,7 @@ export interface FileRoutesByTo {
   '/service-client': typeof AuthenticatedServiceClientRoute
   '/suivi-livreurs': typeof AuthenticatedSuiviLivreursRoute
   '/track/$code': typeof TrackCodeRoute
+  '/boutique/$id': typeof AuthenticatedBoutiqueIdRoute
   '/colis/$tracking': typeof AuthenticatedColisTrackingRoute
   '/print/$tracking': typeof AuthenticatedPrintTrackingRoute
 }
@@ -263,6 +271,7 @@ export interface FileRoutesById {
   '/_authenticated/service-client': typeof AuthenticatedServiceClientRoute
   '/_authenticated/suivi-livreurs': typeof AuthenticatedSuiviLivreursRoute
   '/track/$code': typeof TrackCodeRoute
+  '/_authenticated/boutique/$id': typeof AuthenticatedBoutiqueIdRoute
   '/_authenticated/colis/$tracking': typeof AuthenticatedColisTrackingRoute
   '/_authenticated/print/$tracking': typeof AuthenticatedPrintTrackingRoute
 }
@@ -293,6 +302,7 @@ export interface FileRouteTypes {
     | '/service-client'
     | '/suivi-livreurs'
     | '/track/$code'
+    | '/boutique/$id'
     | '/colis/$tracking'
     | '/print/$tracking'
   fileRoutesByTo: FileRoutesByTo
@@ -321,6 +331,7 @@ export interface FileRouteTypes {
     | '/service-client'
     | '/suivi-livreurs'
     | '/track/$code'
+    | '/boutique/$id'
     | '/colis/$tracking'
     | '/print/$tracking'
   id:
@@ -350,6 +361,7 @@ export interface FileRouteTypes {
     | '/_authenticated/service-client'
     | '/_authenticated/suivi-livreurs'
     | '/track/$code'
+    | '/_authenticated/boutique/$id'
     | '/_authenticated/colis/$tracking'
     | '/_authenticated/print/$tracking'
   fileRoutesById: FileRoutesById
@@ -556,6 +568,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedColisTrackingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/boutique/$id': {
+      id: '/_authenticated/boutique/$id'
+      path: '/boutique/$id'
+      fullPath: '/boutique/$id'
+      preLoaderRoute: typeof AuthenticatedBoutiqueIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
@@ -577,6 +596,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedProspectionRoute: typeof AuthenticatedProspectionRoute
   AuthenticatedServiceClientRoute: typeof AuthenticatedServiceClientRoute
   AuthenticatedSuiviLivreursRoute: typeof AuthenticatedSuiviLivreursRoute
+  AuthenticatedBoutiqueIdRoute: typeof AuthenticatedBoutiqueIdRoute
   AuthenticatedColisTrackingRoute: typeof AuthenticatedColisTrackingRoute
   AuthenticatedPrintTrackingRoute: typeof AuthenticatedPrintTrackingRoute
 }
@@ -599,6 +619,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedProspectionRoute: AuthenticatedProspectionRoute,
   AuthenticatedServiceClientRoute: AuthenticatedServiceClientRoute,
   AuthenticatedSuiviLivreursRoute: AuthenticatedSuiviLivreursRoute,
+  AuthenticatedBoutiqueIdRoute: AuthenticatedBoutiqueIdRoute,
   AuthenticatedColisTrackingRoute: AuthenticatedColisTrackingRoute,
   AuthenticatedPrintTrackingRoute: AuthenticatedPrintTrackingRoute,
 }

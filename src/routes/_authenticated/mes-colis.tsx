@@ -1,8 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Package, Plus, Loader2, Search, TrendingUp, Clock, CheckCircle2, XCircle,
-  Download, Upload, Copy, Printer, Zap, Filter as FilterIcon, Pencil, ChevronDown,
+  Download, Upload, Copy, Printer, Zap, Filter as FilterIcon, Pencil, Trash2, ChevronDown,
   ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,7 +33,6 @@ type SortDir = "asc" | "desc";
 
 const PAGE_SIZES = [10, 25, 50, 100];
 
-// Statuts "encore en route"
 const STATUTS_EN_COURS = [
   "en-preparation", "ramasse", "expedie", "en-livraison", "contact-client", "reporte",
 ];
@@ -54,6 +53,7 @@ function MesColisPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [histoColis, setHistoColis] = useState<any | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -126,7 +126,6 @@ function MesColisPage() {
     return arr;
   }, [filtered, sortKey, sortDir]);
 
-  // Pagination
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const pageRows = useMemo(() => {
@@ -134,7 +133,6 @@ function MesColisPage() {
     return sorted.slice(start, start + pageSize);
   }, [sorted, safePage, pageSize]);
 
-  // Reset page when filters change
   useEffect(() => { setPage(1); }, [query, statutFilter, typeFilter, communeFilter, dateFrom, dateTo, pageSize]);
 
   const allSelected = pageRows.length > 0 && pageRows.every((c) => selected.has(c.id));
@@ -175,7 +173,6 @@ function MesColisPage() {
     else { setSortKey(key); setSortDir(key === "date" ? "desc" : "asc"); }
   };
 
-  // Counters per statut for filter chips
   const countByStatut = useMemo(() => {
     const m: Record<string, number> = {};
     colis.forEach((c) => { m[c.statut] = (m[c.statut] ?? 0) + 1; });
@@ -190,6 +187,17 @@ function MesColisPage() {
   const hasActiveFilters =
     query !== "" || statutFilter !== "all" || typeFilter !== "all" ||
     communeFilter !== "all" || dateFrom !== "" || dateTo !== "";
+
+  async function handleDelete(c: any) {
+    const ok = window.confirm(`Supprimer définitivement le colis ${c.tracking} ?\n\nCette action est irréversible.`);
+    if (!ok) return;
+    setDeletingId(c.id);
+    const { error } = await supabase.from("colis").delete().eq("id", c.id);
+    setDeletingId(null);
+    if (error) { toast.error("Échec de la suppression", { description: error.message }); return; }
+    toast.success(`Colis ${c.tracking} supprimé`);
+    setColis((prev) => prev.filter((x) => x.id !== c.id));
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -247,7 +255,7 @@ function MesColisPage() {
           <StatCard icon={TrendingUp} label="COD encaissé" value={`${stats.cod} DA`} accent="primary" />
         </div>
 
-        {/* Filter chips — par statut */}
+        {/* Filter chips */}
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <button onClick={() => setStatutFilter("all")} className={chipCls(statutFilter === "all")}>
             Tous <span className="ml-1 rounded-full bg-background/30 px-1.5 text-[10px]">{colis.length}</span>
@@ -370,6 +378,7 @@ function MesColisPage() {
                 <tbody>
                   {pageRows.map((c) => {
                     const isSel = selected.has(c.id);
+                    const peutSupprimer = c.statut === "en-preparation";
                     return (
                       <tr key={c.id} className={`border-t border-border transition-colors hover:bg-muted/30 ${isSel ? "bg-primary/5" : ""}`}>
                         <td className="px-3 py-3">
@@ -429,11 +438,23 @@ function MesColisPage() {
                           <div className="flex items-center justify-end gap-1">
                             <TrackingActions colis={c} />
                             {c.statut === "en-preparation" && (
-                              <Link to="/commander">
+                              <Link to="/commander" search={{ colis: c.id } as any}>
                                 <Button size="icon" variant="outline" className="h-8 w-8 text-muted-foreground" title="Modifier">
                                   <Pencil className="h-4 w-4" />
                                 </Button>
                               </Link>
+                            )}
+                            {peutSupprimer && (
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                title="Supprimer"
+                                disabled={deletingId === c.id}
+                                onClick={() => void handleDelete(c)}
+                              >
+                                {deletingId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                              </Button>
                             )}
                           </div>
                         </td>

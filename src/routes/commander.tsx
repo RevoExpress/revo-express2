@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Printer, Package, ArrowRight, User as UserIcon, Phone, MapPin, Pencil, AlertTriangle } from "lucide-react";
+import { Loader2, Printer, Package, ArrowRight, User as UserIcon, Phone, MapPin, Pencil, AlertTriangle, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +15,12 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { Bordereau } from "@/components/bordereau";
 
+const searchSchema = z.object({
+  colis: z.string().optional(), // id du colis à éditer (absent = création)
+});
+
 export const Route = createFileRoute("/commander")({
+  validateSearch: searchSchema.parse,
   head: () => ({ meta: [{ title: "Commander une livraison — REVO EXPRESS" }] }),
   component: CommanderPage,
 });
@@ -32,14 +37,21 @@ const schema = z.object({
   description: z.string().trim().max(500).optional(),
   depart: z.string().min(1, "Commune de départ manquante — complétez votre profil"),
   arrivee: z.string().min(1, "Choisissez une commune d'arrivée"),
-  // Obligatoire mais 0 accepté (colis déjà payé) — la valeur déclarée prend le relais
   prix_colis: z.coerce.number({ invalid_type_error: "Prix du colis requis" }).min(0, "Le prix du colis est obligatoire (0 accepté)").max(10000000),
 });
 
+function normalizeCommune(s: string): string {
+  return String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 function CommanderPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, role, loading: authLoading } = useAuth();
   const { t } = useI18n();
+  const { colis: editColisId } = Route.useSearch();
+  const navigate = useNavigate();
+
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [createdColis, setCreatedColis] = useState<any>(null);
   const [typeLivraison, setTypeLivraison] = useState<DeliveryType>("standard");
   const [typeColis, setTypeColis] = useState<"REV" | "SPL" | "ECH">("REV");
@@ -53,11 +65,54 @@ function CommanderPage() {
     description: "", depart: "", arrivee: "", prix_colis: "",
   });
 
-  // Le prix du colis est 0 → la valeur déclarée devient obligatoire (informative)
+  // Chargement du colis à éditer (le cas échéant)
+  const [editLoading, setEditLoading] = useState(!!editColisId);
+  const [editColis, setEditColis] = useState<any>(null);
+  const [editNotFound, setEditNotFound] = useState(false);
+
+  useEffect(() => {
+    if (!editColisId || !user) return;
+    setEditLoading(true);
+    supabase.from("colis").select("*").eq("id", editColisId).maybeSingle()
+      .then(({ data }) => {
+        if (!data) { setEditNotFound(true); setEditLoading(false); return; }
+        setEditColis(data);
+        setEditLoading(false);
+      });
+  }, [editColisId, user]);
+
+  const isOwner = !!editColis && editColis.client_id === user?.id;
+  const isStaffDeleteAll = role === "admin" || role === "admin_operations";
+  const canEditForm = editColis && ((isOwner && editColis.statut === "en-preparation") || isStaffDeleteAll);
+  const canDelete = editColis && ((isOwner && editColis.statut === "en-preparation") || isStaffDeleteAll);
+  const editUnauthorized = editColis && !canEditForm && !isStaffDeleteAll;
+
+  // Pré-remplit le formulaire quand le colis à éditer est chargé et modifiable
+  useEffect(() => {
+    if (!canEditForm || !editColis) return;
+    const arriveeGuess =
+      COMMUNES.find((c) => normalizeCommune(c.name) === normalizeCommune(editColis.destinataire_wilaya || ""))?.name || "";
+    setForm((f) => ({
+      ...f,
+      destinataire_nom: editColis.destinataire_nom || "",
+      destinataire_tel: editColis.destinataire_tel || "",
+      destinataire_adresse: editColis.destinataire_adresse || "",
+      destinataire_wilaya: editColis.destinataire_wilaya || "Alger",
+      destinataire_cp: editColis.destinataire_cp || "",
+      description: editColis.description || "",
+      prix_colis: editColis.prix_colis != null ? String(editColis.prix_colis) : "",
+      arrivee: arriveeGuess,
+    }));
+    setTypeLivraison(editColis.type_livraison === "urgent" ? "urgent" : "standard");
+    setTypeColis(editColis.type_colis === "ECH" || editColis.type_colis === "SPL" ? editColis.type_colis : "REV");
+    setProduitRetour(editColis.produit_retour || "");
+    setValeurDeclaree(editColis.valeur_declaree != null ? String(editColis.valeur_declaree) : "");
+  }, [canEditForm, editColis]);
+
   const prixEstZero = form.prix_colis.trim() !== "" && Number(form.prix_colis) === 0;
 
-  // Expéditeur et commune de départ : pris du profil, NON modifiables ici.
-  // La commune peut être stockée dans ramassage_commune OU wilaya selon la page qui l'a enregistrée.
+  // Expéditeur et commune de départ : pris du profil, NON modifiables ici (même en édition —
+  // toujours les infos actuelles du compte, pas figées au moment de la création).
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("*").eq("id", user.id).maybeSingle()
@@ -80,7 +135,6 @@ function CommanderPage() {
       });
   }, [user]);
 
-  // Le profil doit être complet pour commander (l'expéditeur figure sur le bordereau)
   const profilIncomplet =
     profilCharge &&
     (!form.expediteur_nom || !form.expediteur_tel || !form.expediteur_adresse || !form.depart);
@@ -112,10 +166,8 @@ function CommanderPage() {
     if (!estimation) { toast.error(t("cmd.err.calc")); return; }
 
     setSubmitting(true);
-    const tracking = generateTracking();
-    const { data, error } = await supabase.from("colis").insert({
-      tracking,
-      client_id: user.id,
+
+    const payload = {
       expediteur_nom: parsed.data.expediteur_nom,
       expediteur_tel: parsed.data.expediteur_tel,
       expediteur_adresse: parsed.data.expediteur_adresse,
@@ -133,15 +185,47 @@ function CommanderPage() {
       type_livraison: typeLivraison,
       type_colis: typeColis,
       produit_retour: typeColis !== "REV" ? produitRetour.trim() || null : null,
+    };
+
+    if (canEditForm && editColis) {
+      // Mise à jour d'un colis existant — le tracking ne change pas
+      const { error } = await supabase.from("colis").update(payload).eq("id", editColis.id);
+      setSubmitting(false);
+      if (error) { toast.error("Échec de la mise à jour", { description: error.message }); return; }
+      toast.success(`Colis ${editColis.tracking} mis à jour`);
+      navigate({ to: "/mes-colis" });
+      return;
+    }
+
+    // Création
+    const tracking = generateTracking();
+    const { data, error } = await supabase.from("colis").insert({
+      tracking,
+      client_id: user.id,
+      ...payload,
       statut: "en-preparation",
-    }).select().single(); 
+    }).select().single();
     setSubmitting(false);
     if (error) { toast.error(t("cmd.err.create"), { description: error.message }); return; }
     toast.success(`${t("cmd.ok.toast")} : ${tracking}`);
     setCreatedColis(data);
   }
 
-  if (authLoading) {
+  async function handleDelete() {
+    if (!editColis) return;
+    const ok = window.confirm(
+      `Supprimer définitivement le colis ${editColis.tracking} ?\n\nCette action est irréversible.`
+    );
+    if (!ok) return;
+    setDeleting(true);
+    const { error } = await supabase.from("colis").delete().eq("id", editColis.id);
+    setDeleting(false);
+    if (error) { toast.error("Échec de la suppression", { description: error.message }); return; }
+    toast.success(`Colis ${editColis.tracking} supprimé`);
+    navigate({ to: "/mes-colis" });
+  }
+
+  if (authLoading || editLoading) {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
@@ -153,12 +237,66 @@ function CommanderPage() {
           <div className="max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-card">
             <Package className="mx-auto h-12 w-12 text-primary" />
             <h1 className="mt-4 text-2xl font-black">{t("cmd.login.title")}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {t("cmd.login.sub")}
-            </p>
+            <p className="mt-2 text-sm text-muted-foreground">{t("cmd.login.sub")}</p>
             <div className="mt-6 flex gap-2 justify-center">
               <Link to="/login"><Button variant="outline">{t("nav.login")}</Button></Link>
               <Link to="/signup"><Button className="bg-gradient-primary">{t("cmd.signup")}</Button></Link>
+            </div>
+          </div>
+        </div>
+        <SiteFooter />
+      </div>
+    );
+  }
+
+  if (editColisId && editNotFound) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <SiteNav />
+        <div className="container mx-auto max-w-md px-4 py-20 text-center">
+          <Package className="mx-auto h-12 w-12 text-muted-foreground" />
+          <h1 className="mt-4 text-xl font-black">Colis introuvable</h1>
+          <Link to="/mes-colis" className="mt-4 inline-block"><Button variant="outline">Retour à Mes colis</Button></Link>
+        </div>
+        <SiteFooter />
+      </div>
+    );
+  }
+
+  // Colis chargé mais pas modifiable : staff peut quand même le supprimer, sinon accès refusé
+  if (editColis && !canEditForm) {
+    if (!isStaffDeleteAll) {
+      return (
+        <div className="flex min-h-screen flex-col">
+          <SiteNav />
+          <div className="container mx-auto max-w-md px-4 py-20 text-center">
+            <AlertTriangle className="mx-auto h-12 w-12 text-warning" />
+            <h1 className="mt-4 text-xl font-black">Modification impossible</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Ce colis n'est plus « En préparation » — il ne peut plus être modifié.
+            </p>
+            <Link to="/mes-colis" className="mt-4 inline-block"><Button variant="outline">Retour à Mes colis</Button></Link>
+          </div>
+          <SiteFooter />
+        </div>
+      );
+    }
+    return (
+      <div className="flex min-h-screen flex-col">
+        <SiteNav />
+        <div className="container mx-auto max-w-lg px-4 py-16">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+            <h1 className="text-lg font-black">{editColis.tracking}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Statut : <b>{editColis.statut}</b> — modification indisponible depuis cet écran pour ce statut,
+              mais vous pouvez supprimer ce colis.
+            </p>
+            <div className="mt-5 flex gap-2">
+              <Button variant="destructive" className="gap-2" disabled={deleting} onClick={() => void handleDelete()}>
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Supprimer ce colis
+              </Button>
+              <Link to="/mes-colis"><Button variant="outline">Annuler</Button></Link>
             </div>
           </div>
         </div>
@@ -201,7 +339,9 @@ function CommanderPage() {
       <SiteNav />
       <section className="border-b border-border bg-secondary/40 py-12">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl font-black md:text-5xl">{t("cmd.title")}</h1>
+          <h1 className="text-4xl font-black md:text-5xl">
+            {canEditForm ? `Modifier ${editColis.tracking}` : t("cmd.title")}
+          </h1>
           <p className="mt-2 text-muted-foreground">{t("cmd.sub")}</p>
         </div>
       </section>
@@ -324,9 +464,13 @@ function CommanderPage() {
                   value={form.prix_colis}
                   onChange={(e) => setForm({ ...form, prix_colis: e.target.value })}
                 />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Obligatoire — mettez 0 si le colis est déjà payé.
-                </p>
+                <div className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-warning/10 px-2.5 py-2 text-xs text-warning">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    <b>N'incluez pas les frais de livraison</b> — uniquement le prix du produit.
+                    Les frais sont calculés séparément par Revo. Mettez 0 si le colis est déjà payé.
+                  </span>
+                </div>
               </div>
               {prixEstZero && (
                 <div className="rounded-lg border border-warning/40 bg-warning/5 p-3">
@@ -387,7 +531,6 @@ function CommanderPage() {
                 </div>
               </div>
 
-              {/* Commune de départ — lecture seule depuis le profil */}
               <div>
                 <Label>{t("cmd.from")}</Label>
                 <div className="mt-1 flex items-center gap-2 rounded-md border border-border bg-secondary/60 px-3 py-2 text-sm font-semibold">
@@ -424,8 +567,21 @@ function CommanderPage() {
 
               <Button type="submit" disabled={submitting || !estimation || profilIncomplet} className="mt-4 w-full bg-gradient-primary shadow-glow">
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {t("cmd.submit")}
+                {canEditForm ? "Enregistrer les modifications" : t("cmd.submit")}
               </Button>
+
+              {canDelete && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={deleting}
+                  onClick={() => void handleDelete()}
+                  className="mt-2 w-full gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  Supprimer ce colis
+                </Button>
+              )}
             </Card>
           </div>
         </form>

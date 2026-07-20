@@ -1,6 +1,9 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Package, Download, Check, UserCircle2, LayoutDashboard, Search, UserX, ChevronDown, MessageSquare, X } from "lucide-react";
+import {
+  Loader2, Package, Download, UserCircle2, LayoutDashboard, Search, UserX,
+  ChevronDown, MessageSquare, X, Pencil, Trash2, Store,
+} from "lucide-react";
 import { ProPageHeader } from "@/components/pro-page-header";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,55 +15,60 @@ import { STATUTS } from "@/lib/tarifs";
 import { exportColisToXLSX } from "@/lib/export-csv";
 import { TrackingBadge } from "@/components/tracking-badge";
 import { TrackingActions } from "@/components/tracking-actions";
-import { cn } from "@/lib/utils";
 import { AdminStats } from "@/components/admin-stats";
+import { OpsStatsPanel } from "@/components/ops-stats-panel";
 import { ColisCommentaires } from "@/components/colis-commentaires";
+import { ColisStatusPill, ColisStatusModal, pillFor, hexFor } from "@/components/colis-status-menu";
 
-/* Couleur de chaque statut, en dur (hex) — visible partout, tout le temps */
-const STATUT_HEX: Record<string, string> = {
-  "en-preparation": "#f59e0b",
-  "ramasse": "#fdba74",
-  "expedie": "#fb923c",
-  "en-livraison": "#f97316",
-  "contact-client": "#fcd34d",
-  "livre": "#22c55e",
-  "reporte": "#fcd34d",
-  "echec-livraison": "#dc2626",
-  "retourne-vendeur": "#f87171",
-  "annule": "#9ca3af",
-};
-const hexFor = (statut: string) => STATUT_HEX[statut] ?? "#9ca3af";
-
-const STATUT_PILL: Record<string, string> = {
-  "en-preparation": "border-warning/40 bg-warning/10 text-warning",
-  "ramasse": "border-primary/40 bg-primary/10 text-primary",
-  "expedie": "border-primary/40 bg-primary/10 text-primary",
-  "en-livraison": "border-primary/50 bg-primary/15 text-primary",
-  "contact-client": "border-warning/40 bg-warning/10 text-warning",
-  "livre": "border-success/40 bg-success/10 text-success",
-  "reporte": "border-warning/40 bg-warning/10 text-warning",
-  "echec-livraison": "border-destructive/40 bg-destructive/10 text-destructive",
-  "retourne-vendeur": "border-destructive/40 bg-destructive/10 text-destructive",
-  "annule": "border-border bg-muted text-muted-foreground",
-};
-const pillFor = (statut: string) => STATUT_PILL[statut] ?? "border-border bg-muted text-muted-foreground";
-
-type MenuState = { id: string; kind: "statut" | "livreur"; x: number; y: number } | null;
+type LivreurMenuState = { id: string; x: number; y: number } | null;
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — REVO EXPRESS" }] }),
   component: AdminPage,
 });
 
+function initiales(nom: string) {
+  return nom.split(" ").map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "?";
+}
+
+const GROUP_BG: Record<string, string> = {
+  "en-preparation": "bg-warning/10",
+  "ramasse": "bg-primary/10",
+  "expedie": "bg-primary/10",
+  "en-livraison": "bg-primary/15",
+  "contact-client": "bg-warning/10",
+  "client": "bg-info/10",
+  "livre": "bg-success/10",
+  "reporte": "bg-warning/10",
+  "echec-livraison": "bg-destructive/10",
+  "retourne-vendeur": "bg-destructive/10",
+  "annule": "bg-muted",
+};
+const GROUP_TEXT: Record<string, string> = {
+  "en-preparation": "text-warning",
+  "ramasse": "text-primary",
+  "expedie": "text-primary",
+  "en-livraison": "text-primary",
+  "contact-client": "text-warning",
+  "client": "text-info",
+  "livre": "text-success",
+  "reporte": "text-warning",
+  "echec-livraison": "text-destructive",
+  "retourne-vendeur": "text-destructive",
+  "annule": "text-muted-foreground",
+};
+
 function AdminPage() {
   const { role, loading } = useAuth();
   const [colis, setColis] = useState<any[]>([]);
   const [livreurs, setLivreurs] = useState<any[]>([]);
   const [recherche, setRecherche] = useState("");
-  const [filtreStatut, setFiltreStatut] = useState("tous");
-  const [menu, setMenu] = useState<MenuState>(null);
+  const [livreurMenu, setLivreurMenu] = useState<LivreurMenuState>(null);
+  const [statutColis, setStatutColis] = useState<any | null>(null);
   const [notesColis, setNotesColis] = useState<any | null>(null);
   const [notesCount, setNotesCount] = useState<Record<string, number>>({});
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set(["livre", "annule"]));
 
   useEffect(() => {
     if (role !== "admin") return;
@@ -72,7 +80,6 @@ function AdminPage() {
         const { data: profs } = await supabase.from("profiles").select("id, nom, email").in("id", ids);
         setLivreurs(profs || []);
       });
-
     const ch = supabase.channel("admin-colis")
       .on("postgres_changes", { event: "*", schema: "public", table: "colis" }, refresh)
       .subscribe();
@@ -82,7 +89,6 @@ function AdminPage() {
   async function refresh() {
     const { data } = await supabase.from("colis").select("*").order("date_creation", { ascending: false }).limit(500);
     setColis(data || []);
-    // Compteur de notes par colis (pastille sur l'icône 💬) — silencieux si indisponible
     supabase.from("colis_commentaires").select("colis_id")
       .then(({ data: rows, error }) => {
         if (error || !rows) return;
@@ -110,29 +116,53 @@ function AdminPage() {
     return l ? (l.nom || l.email) : null;
   };
 
-  /* Ouvre un menu custom sous le bouton cliqué (position fixe = jamais coupé) */
-  function openMenu(e: React.MouseEvent<HTMLButtonElement>, id: string, kind: "statut" | "livreur") {
-    if (menu?.id === id && menu.kind === kind) { setMenu(null); return; }
+  function openLivreurMenu(e: React.MouseEvent<HTMLButtonElement>, id: string) {
+    if (livreurMenu?.id === id) { setLivreurMenu(null); return; }
     const r = e.currentTarget.getBoundingClientRect();
     const width = 240;
     const x = Math.min(r.left, window.innerWidth - width - 12);
     let y = r.bottom + 6;
     if (y + 340 > window.innerHeight) y = Math.max(12, r.top - 346);
-    setMenu({ id, kind, x, y });
+    setLivreurMenu({ id, x, y });
+  }
+
+  async function handleDelete(c: any) {
+    const ok = window.confirm(`Supprimer définitivement le colis ${c.tracking} ?\n\nCette action est irréversible.`);
+    if (!ok) return;
+    setDeletingId(c.id);
+    const { error } = await supabase.from("colis").delete().eq("id", c.id);
+    setDeletingId(null);
+    if (error) { toast.error("Échec de la suppression", { description: error.message }); return; }
+    toast.success(`Colis ${c.tracking} supprimé`);
+    setColis((prev) => prev.filter((x) => x.id !== c.id));
   }
 
   const colisAffiches = useMemo(() => {
     const q = recherche.trim().toLowerCase();
-    return colis.filter((c) => {
-      if (filtreStatut !== "tous" && c.statut !== filtreStatut) return false;
-      if (!q) return true;
-      return Object.values(c).some(
-        (v) => typeof v === "string" && v.toLowerCase().includes(q),
-      );
-    });
-  }, [colis, recherche, filtreStatut]);
+    if (!q) return colis;
+    return colis.filter((c) => Object.values(c).some((v) => typeof v === "string" && v.toLowerCase().includes(q)));
+  }, [colis, recherche]);
 
-  const menuColis = menu ? colis.find((c) => c.id === menu.id) : null;
+  const groupes = useMemo(() => {
+    return STATUTS.map((s) => {
+      const rows = colisAffiches.filter((c) => c.statut === s.key);
+      const total = rows.reduce((sum, c) => sum + Number(c.prix_colis ?? 0), 0);
+      const bloques = s.key === "en-preparation"
+        ? rows.filter((c) => Date.now() - new Date(c.date_creation).getTime() > 48 * 3600 * 1000).length
+        : 0;
+      return { ...s, rows, total, bloques };
+    }).filter((g) => g.rows.length > 0);
+  }, [colisAffiches]);
+
+  function toggleGroup(key: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
+  const livreurMenuColis = livreurMenu ? colis.find((c) => c.id === livreurMenu.id) : null;
 
   if (loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (role !== "admin") return <Navigate to="/" />;
@@ -150,22 +180,10 @@ function AdminPage() {
               variant="outline"
               className="gap-2"
               onClick={async () => {
-                const { data, error } = await supabase
-                  .from("colis")
-                  .select("*")
-                  .order("date_creation", { ascending: false });
+                const { data, error } = await supabase.from("colis").select("*").order("date_creation", { ascending: false });
                 if (error) { toast.error(error.message); return; }
                 if (!data?.length) { toast.info("Aucun colis à exporter"); return; }
-                const livreurIds = Array.from(new Set(data.map((c: any) => c.livreur_id).filter(Boolean)));
-                const livreurById = new Map<string, { nom?: string | null; telephone?: string | null }>();
-                if (livreurIds.length) {
-                  const { data: profs } = await supabase
-                    .from("profiles")
-                    .select("id, nom, telephone")
-                    .in("id", livreurIds);
-                  (profs ?? []).forEach((p: any) => livreurById.set(p.id, { nom: p.nom, telephone: p.telephone }));
-                }
-                exportColisToXLSX(data, `revo-export-${new Date().toISOString().slice(0, 10)}.xlsx`, { livreurById });
+                exportColisToXLSX(data, `revo-export-${new Date().toISOString().slice(0, 10)}.xlsx`);
                 toast.success(`${data.length} colis exportés`);
               }}
             >
@@ -174,13 +192,24 @@ function AdminPage() {
           }
         />
 
-        <div className="mt-2">
-          <AdminStats />
+        <div className="mt-2"><AdminStats /></div>
+        <OpsStatsPanel colis={colis} livreurs={livreurs} />
+
+        {/* Bandeau résumé par statut, cliquable pour filtrer par recherche texte (simple) */}
+        <div className="mb-4 flex flex-wrap gap-2">
+          {groupes.map((g) => (
+            <button
+              key={g.key}
+              onClick={() => toggleGroup(g.key)}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold ${GROUP_BG[g.key]} ${GROUP_TEXT[g.key]}`}
+            >
+              {g.label} · {g.rows.length} · {g.total.toLocaleString("fr-FR")} DA
+            </button>
+          ))}
         </div>
 
-        {/* Recherche + filtre statut + compteur */}
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
+        <div className="mb-4">
+          <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
@@ -190,119 +219,99 @@ function AdminPage() {
               className="h-10 w-full rounded-full border border-border bg-background pl-9 pr-4 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30"
             />
           </div>
-          <select
-            value={filtreStatut}
-            onChange={(e) => setFiltreStatut(e.target.value)}
-            className="h-10 w-full rounded-full border border-border px-4 text-sm sm:w-[220px]"
-          >
-            <option value="tous">Tous les statuts</option>
-            {STATUTS.map((s) => (
-              <option key={s.key} value={s.key}>{s.label}</option>
-            ))}
-          </select>
-          <span className="shrink-0 text-sm font-medium text-muted-foreground">
-            {colisAffiches.length} colis
-          </span>
         </div>
 
-        <div className="mt-4 overflow-x-auto rounded-2xl border border-border bg-card shadow-card">
-          <table className="w-full text-sm">
-            <thead className="bg-muted text-foreground">
-              <tr>
-                <th className="px-3 py-3 text-left">Tracking</th>
-                <th className="px-3 py-3 text-left">Destinataire</th>
-                <th className="px-3 py-3 text-left">Trajet</th>
-                <th className="px-3 py-3 text-left">Livreur</th>
-                <th className="px-3 py-3 text-left">Statut</th>
-                <th className="px-3 py-3 text-center">Notes</th>
-                <th className="px-3 py-3 text-right">Prix</th>
-                <th className="px-3 py-3 text-right sticky right-0 bg-muted">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {colisAffiches.map((c) => {
-                const assigned = !!c.livreur_id;
-                const nNotes = notesCount[c.id] ?? 0;
-                return (
-                  <tr key={c.id} className="hover:bg-accent/40">
-                    <td className="px-3 py-2 font-mono text-xs">
-                      {c.tracking}
-                      <TrackingBadge typeColis={c.type_colis} />
-                    </td>
-                    <td className="px-3 py-2">{c.destinataire_nom}<br /><span className="text-xs text-muted-foreground">{c.destinataire_tel}</span></td>
-                    <td className="px-3 py-2 text-xs">{c.depart} → {c.destinataire_wilaya}</td>
-                    <td className="px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={(e) => openMenu(e, c.id, "livreur")}
-                        className={cn(
-                          "inline-flex h-8 w-[180px] items-center gap-2 rounded-full border px-3 text-xs transition-colors",
-                          assigned
-                            ? "border-primary/50 bg-primary/10 font-bold text-primary"
-                            : "border-dashed border-border bg-background font-medium text-muted-foreground hover:border-primary/50 hover:text-foreground",
-                        )}
+        {groupes.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center text-muted-foreground">
+            <Package className="mx-auto mb-2 h-8 w-8" /> Aucun colis trouvé
+          </div>
+        )}
+
+        {groupes.map((g) => {
+          const isCollapsed = collapsed.has(g.key);
+          return (
+            <div key={g.key} className="mb-3 overflow-hidden rounded-2xl border border-border">
+              <button
+                onClick={() => toggleGroup(g.key)}
+                className={`flex w-full items-center justify-between px-4 py-2.5 ${GROUP_BG[g.key]}`}
+              >
+                <span className={`flex items-center gap-2 font-bold ${GROUP_TEXT[g.key]}`}>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${isCollapsed ? "-rotate-90" : ""}`} />
+                  {g.label}
+                </span>
+                <span className={`flex items-center gap-3 text-xs ${GROUP_TEXT[g.key]}`}>
+                  <span>{g.rows.length} colis · {g.total.toLocaleString("fr-FR")} DA</span>
+                  {g.bloques > 0 && (
+                    <span className="rounded-full bg-destructive px-2 py-0.5 font-bold text-destructive-foreground">
+                      {g.bloques} bloqué{g.bloques > 1 ? "s" : ""}
+                    </span>
+                  )}
+                </span>
+              </button>
+
+              {!isCollapsed && (
+                <div className="divide-y divide-border bg-card">
+                  {g.rows.map((c) => {
+                    const bloque = g.key === "en-preparation" && Date.now() - new Date(c.date_creation).getTime() > 48 * 3600 * 1000;
+                    const nNotes = notesCount[c.id] ?? 0;
+                    return (
+                      <div
+                        key={c.id}
+                        className={`grid grid-cols-1 gap-2 px-4 py-3 md:grid-cols-[32px_1fr_140px_190px_36px_80px_auto] md:items-center md:gap-3 ${bloque ? "border-l-4 border-destructive" : ""}`}
                       >
-                        <UserCircle2 className="h-3.5 w-3.5 shrink-0" />
-                        <span className="flex-1 truncate text-left">
-                          {livreurName(c.livreur_id) ?? "Assigner…"}
-                        </span>
-                        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                      </button>
-                    </td>
-                    <td className="px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={(e) => openMenu(e, c.id, "statut")}
-                        className={cn(
-                          "inline-flex h-8 w-[210px] items-center gap-2 rounded-full border px-3 text-xs font-semibold transition-all hover:opacity-90",
-                          pillFor(c.statut),
-                        )}
-                      >
-                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: hexFor(c.statut) }} />
-                        <span className="flex-1 truncate text-left">
-                          {STATUTS.find((s) => s.key === c.statut)?.label ?? c.statut}
-                        </span>
-                        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                      </button>
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <button
-                        type="button"
-                        onClick={() => setNotesColis(c)}
-                        title="Notes internes"
-                        className="relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                        {nNotes > 0 && (
-                          <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-black text-white">
-                            {nNotes}
-                          </span>
-                        )}
-                      </button>
-                    </td>
-                    <td className="px-3 py-2 text-right font-bold">{c.prix} DA</td>
-                    <td className="px-3 py-2 text-right sticky right-0 bg-card">
-                      <div className="flex justify-end">
-                        <TrackingActions colis={c} />
+                        <div className="hidden h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary md:flex">
+                          {initiales(c.expediteur_nom || "?")}
+                        </div>
+                        <div className="min-w-0">
+                          <Link to="/boutique/$id" params={{ id: c.client_id }} className="font-semibold text-primary hover:underline">
+                            {c.expediteur_nom || "Boutique"}
+                          </Link>
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                            <span className="font-mono">{c.tracking}</span>
+                            <TrackingBadge typeColis={c.type_colis} />
+                            <span>· {c.destinataire_nom} · {c.destinataire_tel}</span>
+                            {bloque && <span className="font-bold text-destructive">depuis plus de 48h</span>}
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">{c.depart} → {c.destinataire_wilaya}</div>
+                        <button
+                          type="button"
+                          onClick={(e) => openLivreurMenu(e, c.id)}
+                          className="inline-flex h-8 items-center gap-2 rounded-full border border-dashed border-border bg-background px-3 text-xs font-medium text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                        >
+                          <UserCircle2 className="h-3.5 w-3.5 shrink-0" />
+                          <span className="flex-1 truncate text-left">{livreurName(c.livreur_id) ?? "Assigner…"}</span>
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                        </button>
+                        <button onClick={() => setNotesColis(c)} title="Notes" className="relative flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground hover:border-primary/50 hover:text-primary">
+                          <MessageSquare className="h-4 w-4" />
+                          {nNotes > 0 && <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-black text-white">{nNotes}</span>}
+                        </button>
+                        <div className="text-right font-bold">{c.prix_colis} DA</div>
+                        <div className="flex justify-end gap-1">
+                          <ColisStatusPill statut={c.statut} onClick={() => setStatutColis(c)} />
+                          <TrackingActions colis={c} />
+                          <Link to="/commander" search={{ colis: c.id } as any}>
+                            <Button size="icon" variant="outline" className="h-8 w-8 text-muted-foreground" title="Modifier">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          <Button size="icon" variant="outline" className="h-8 w-8 text-destructive hover:bg-destructive/10" title="Supprimer" disabled={deletingId === c.id} onClick={() => void handleDelete(c)}>
+                            {deletingId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          </Button>
+                        </div>
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {colisAffiches.length === 0 && (
-                <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">
-                  <Package className="mx-auto mb-2 h-8 w-8" /> Aucun colis trouvé
-                </td></tr>
+                    );
+                  })}
+                </div>
               )}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          );
+        })}
 
         <div className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-card">
           <h2 className="font-bold">Gestion des livreurs</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Les livreurs se créent depuis la page <strong>/comptes</strong> (réservée au DG).
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Les livreurs se créent depuis la page <strong>/comptes</strong> (réservée au DG).</p>
           <div className="mt-3">
             <strong className="text-sm">Livreurs actuels :</strong>
             <ul className="mt-1 text-sm text-muted-foreground">
@@ -312,107 +321,59 @@ function AdminPage() {
         </div>
       </section>
 
-      {/* MENU CUSTOM (statut / livreur) — HTML simple, toujours visible */}
-      {menu && menuColis && (
+      {/* Menu livreur (flottant, positionné) */}
+      {livreurMenu && livreurMenuColis && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setMenu(null)} />
-          <div
-            className="fixed z-50 max-h-[340px] w-[240px] overflow-y-auto rounded-xl border p-1 shadow-xl"
-            style={{ left: menu.x, top: menu.y, backgroundColor: "#ffffff", borderColor: "#e5e7eb" }}
-          >
-            {menu.kind === "statut" &&
-              STATUTS.map((s) => {
-                const active = menuColis.statut === s.key;
-                return (
-                  <button
-                    key={s.key}
-                    type="button"
-                    onClick={() => { void updateStatut(menu.id, s.key); setMenu(null); }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium"
-                    style={{ color: "#111111", backgroundColor: active ? "#fff7ed" : "transparent" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#fff7ed")}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = active ? "#fff7ed" : "transparent")}
-                  >
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: hexFor(s.key) }} />
-                    <span className="flex-1">{s.label}</span>
-                    {active && <Check className="h-3.5 w-3.5" style={{ color: "#f97316" }} />}
-                  </button>
-                );
-              })}
-
-            {menu.kind === "livreur" && (
-              <>
-                {livreurs.length === 0 && (
-                  <div className="px-3 py-2 text-xs" style={{ color: "#6b7280" }}>
-                    Aucun livreur — créez-en un via /comptes
-                  </div>
-                )}
-                {livreurs.map((l) => {
-                  const active = menuColis.livreur_id === l.id;
-                  return (
-                    <button
-                      key={l.id}
-                      type="button"
-                      onClick={() => { void assignLivreur(menu.id, l.id); setMenu(null); }}
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium"
-                      style={{ color: "#111111", backgroundColor: active ? "#fff7ed" : "transparent" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#fff7ed")}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = active ? "#fff7ed" : "transparent")}
-                    >
-                      <UserCircle2 className="h-4 w-4 shrink-0" style={{ color: "#f97316" }} />
-                      <span className="flex-1 truncate">{l.nom || l.email}</span>
-                      {active && <Check className="h-3.5 w-3.5" style={{ color: "#f97316" }} />}
-                    </button>
-                  );
-                })}
-                {menuColis.livreur_id && (
-                  <button
-                    type="button"
-                    onClick={() => { void assignLivreur(menu.id, ""); setMenu(null); }}
-                    className="mt-1 flex w-full items-center gap-2 rounded-lg border-t px-3 py-2 text-left text-xs font-medium"
-                    style={{ color: "#dc2626", borderColor: "#f3f4f6" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#fef2f2")}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                  >
-                    <UserX className="h-4 w-4 shrink-0" />
-                    Retirer le livreur
-                  </button>
-                )}
-              </>
+          <div className="fixed inset-0 z-40" onClick={() => setLivreurMenu(null)} />
+          <div className="fixed z-50 max-h-[340px] w-[240px] overflow-y-auto rounded-xl border p-1 shadow-xl" style={{ left: livreurMenu.x, top: livreurMenu.y, backgroundColor: "#ffffff", borderColor: "#e5e7eb" }}>
+            {livreurs.length === 0 && <div className="px-3 py-2 text-xs" style={{ color: "#6b7280" }}>Aucun livreur — créez-en un via /comptes</div>}
+            {livreurs.map((l) => {
+              const active = livreurMenuColis.livreur_id === l.id;
+              return (
+                <button
+                  key={l.id}
+                  onClick={() => { void assignLivreur(livreurMenu.id, l.id); setLivreurMenu(null); }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium"
+                  style={{ color: "#111111", backgroundColor: active ? "#fff7ed" : "transparent" }}
+                >
+                  <UserCircle2 className="h-4 w-4 shrink-0" style={{ color: "#f97316" }} />
+                  <span className="flex-1 truncate">{l.nom || l.email}</span>
+                </button>
+              );
+            })}
+            {livreurMenuColis.livreur_id && (
+              <button onClick={() => { void assignLivreur(livreurMenu.id, ""); setLivreurMenu(null); }} className="mt-1 flex w-full items-center gap-2 rounded-lg border-t px-3 py-2 text-left text-xs font-medium" style={{ color: "#dc2626", borderColor: "#f3f4f6" }}>
+                <UserX className="h-4 w-4 shrink-0" /> Retirer le livreur
+              </button>
             )}
           </div>
         </>
       )}
 
-      {/* Fenêtre notes internes (clic sur 💬) */}
+      {/* Nouveau menu de statut (gros boutons) */}
+      {statutColis && (
+        <ColisStatusModal
+          statutActuel={statutColis.statut}
+          onChoose={(key) => { void updateStatut(statutColis.id, key); setStatutColis(null); }}
+          onClose={() => setStatutColis(null)}
+        />
+      )}
+
+      {/* Notes internes */}
       {notesColis && (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-10 backdrop-blur-sm"
-          onClick={() => { setNotesColis(null); void refresh(); }}
-        >
-          <div
-            className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-card"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-10 backdrop-blur-sm" onClick={() => { setNotesColis(null); void refresh(); }}>
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-card" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
               <div className="flex min-w-0 items-center gap-2">
                 <MessageSquare className="h-5 w-5 shrink-0 text-primary" />
                 <h2 className="shrink-0 font-bold">Notes internes</h2>
-                <span className="truncate rounded-md bg-info/15 px-2 py-0.5 font-mono text-sm font-bold text-info">
-                  {notesColis.tracking}
-                </span>
+                <span className="truncate rounded-md bg-info/15 px-2 py-0.5 font-mono text-sm font-bold text-info">{notesColis.tracking}</span>
               </div>
-              <button
-                onClick={() => { setNotesColis(null); void refresh(); }}
-                aria-label="Fermer"
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
+              <button onClick={() => { setNotesColis(null); void refresh(); }} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="max-h-[70vh] overflow-y-auto p-5">
-              <ColisCommentaires colisId={notesColis.id} />
-            </div>
+            <div className="max-h-[70vh] overflow-y-auto p-5"><ColisCommentaires colisId={notesColis.id} /></div>
           </div>
         </div>
       )}
