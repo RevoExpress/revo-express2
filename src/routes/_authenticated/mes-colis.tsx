@@ -15,6 +15,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { TrackingBadge } from "@/components/tracking-badge";
 import { ColisHistoriqueModal } from "@/components/colis-historique-modal";
 import { TrackingActions } from "@/components/tracking-actions";
+import { ClientDashboardPanel } from "@/components/client-dashboard-panel";
 import { STATUTS, COMMUNES } from "@/lib/tarifs";
 import { exportColisToXLSX } from "@/lib/export-csv";
 import {
@@ -245,6 +246,8 @@ function MesColisPage() {
             </DropdownMenu>
           </div>
         </div>
+
+        <ClientDashboardPanel colis={colis} />
 
         {/* Stat cards */}
         <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">

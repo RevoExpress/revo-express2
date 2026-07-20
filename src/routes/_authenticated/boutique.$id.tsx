@@ -1,13 +1,14 @@
 import { createFileRoute, useParams, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Package, Phone, MapPin, Store } from "lucide-react";
+import { ArrowLeft, Package, Phone, MapPin, Store, Pencil, Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { TrackingBadge } from "@/components/tracking-badge";
 import { TrackingActions } from "@/components/tracking-actions";
+import { Button } from "@/components/ui/button";
 import { STATUTS } from "@/lib/tarifs";
-import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/boutique/$id")({
   head: () => ({ meta: [{ title: "Fiche boutique — REVO EXPRESS" }] }),
@@ -19,18 +20,30 @@ function BoutiquePage() {
   const [profil, setProfil] = useState<any>(null);
   const [colis, setColis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      const [{ data: p }, { data: c }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", id).maybeSingle(),
-        supabase.from("colis").select("*").eq("client_id", id).order("date_creation", { ascending: false }),
-      ]);
-      setProfil(p);
-      setColis(c || []);
-      setLoading(false);
-    })();
-  }, [id]);
+  async function load() {
+    const [{ data: p }, { data: c }] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", id).maybeSingle(),
+      supabase.from("colis").select("*").eq("client_id", id).order("date_creation", { ascending: false }),
+    ]);
+    setProfil(p);
+    setColis(c || []);
+    setLoading(false);
+  }
+
+  useEffect(() => { void load(); }, [id]);
+
+  async function handleDelete(c: any) {
+    const ok = window.confirm(`Supprimer définitivement le colis ${c.tracking} ?\n\nCette action est irréversible.`);
+    if (!ok) return;
+    setDeletingId(c.id);
+    const { error } = await supabase.from("colis").delete().eq("id", c.id);
+    setDeletingId(null);
+    if (error) { toast.error("Échec de la suppression", { description: error.message }); return; }
+    toast.success(`Colis ${c.tracking} supprimé`);
+    setColis((prev) => prev.filter((x) => x.id !== c.id));
+  }
 
   if (loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
@@ -101,7 +114,26 @@ function BoutiquePage() {
                         </span>
                       </td>
                       <td className="px-3 py-2 text-right font-bold">{c.prix_colis} DA</td>
-                      <td className="px-3 py-2 text-right"><div className="flex justify-end"><TrackingActions colis={c} /></div></td>
+                      <td className="px-3 py-2 text-right">
+                        <div className="flex justify-end gap-1">
+                          <TrackingActions colis={c} />
+                          <Link to="/commander" search={{ colis: c.id } as any}>
+                            <Button size="icon" variant="outline" className="h-8 w-8 text-muted-foreground" title="Modifier">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            title="Supprimer"
+                            disabled={deletingId === c.id}
+                            onClick={() => void handleDelete(c)}
+                          >
+                            {deletingId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
