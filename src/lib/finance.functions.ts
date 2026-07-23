@@ -7,7 +7,7 @@ async function getRoles(supabase: any, userId: string): Promise<string[]> {
   const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
   return (data ?? []).map((r: any) => r.role as string);
 }
-const isFinanceStaff = (roles: string[]) => roles.includes("admin");
+const isFinanceStaff = (roles: string[]) => roles.includes("admin") || roles.includes("admin_operations");
 
 function genReference() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -56,7 +56,7 @@ export const getMesReversements = createServerFn({ method: "POST" })
     return { reversements: data ?? [] };
   });
 
-// ── Côté staff (finance) ─────────────────────────────────────────
+// ── Côté staff (finance) : DG et Admin Opérations ─────────────────
 
 export const listSoldesTousClients = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -151,4 +151,48 @@ export const getReversementDetail = createServerFn({ method: "POST" })
       .eq("reversement_id", rev.id);
 
     return { reversement: rev, profil, colis: colisInclus ?? [] };
+  });
+  // ── Marquer l'encaissement (DG / Admin Opérations, sans passer par le livreur) ──
+
+export const listColisLivresNonEncaisses = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    if (!isFinanceStaff(roles)) throw new Error("Forbidden");
+
+    const { data } = await supabaseAdmin
+      .from("colis")
+      .select("id, tracking, client_id, destinataire_nom, prix_colis, prix, date_creation")
+      .eq("statut", "livre")
+      .or("cod_encaisse.is.null,cod_encaisse.eq.false")
+      .eq("archive", false)
+      .eq("type_colis", "REV")
+      .order("date_creation", { ascending: false })
+      .limit(200);
+    if (!data?.length) return { colis: [] };
+
+    const ids = Array.from(new Set(data.map((c: any) => c.client_id)));
+    const { data: profs } = await supabaseAdmin.from("profiles").select("id, nom, nom_boutique").in("id", ids);
+    const byId = new Map((profs ?? []).map((p: any) => [p.id, p]));
+    const enrichis = data.map((c: any) => ({ ...c, profil: byId.get(c.client_id) }));
+    return { colis: enrichis };
+  });
+
+const MarquerEncaisseInput = z.object({
+  colis_ids: z.array(z.string().uuid()).min(1),
+});
+
+export const marquerEncaisse = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => MarquerEncaisseInput.parse(data))
+  .handler(async ({ data, context }) => {
+    const roles = await getRoles(context.supabase, context.userId);
+    if (!isFinanceStaff(roles)) throw new Error("Forbidden");
+
+    const { error } = await supabaseAdmin
+      .from("colis")
+      .update({ cod_encaisse: true })
+      .in("id", data.colis_ids);
+    if (error) throw new Error(error.message);
+    return { ok: true, count: data.colis_ids.length };
   });

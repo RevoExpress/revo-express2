@@ -2,7 +2,7 @@ import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Loader2, Package, Download, UserCircle2, LayoutDashboard, Search, UserX,
-  ChevronDown, MessageSquare, X, Pencil, Trash2, Store,
+  ChevronDown, MessageSquare, X, Pencil, Trash2,
 } from "lucide-react";
 import { ProPageHeader } from "@/components/pro-page-header";
 import { toast } from "sonner";
@@ -18,7 +18,7 @@ import { TrackingActions } from "@/components/tracking-actions";
 import { AdminStats } from "@/components/admin-stats";
 import { OpsStatsPanel } from "@/components/ops-stats-panel";
 import { ColisCommentaires } from "@/components/colis-commentaires";
-import { ColisStatusPill, ColisStatusModal, pillFor, hexFor } from "@/components/colis-status-menu";
+import { ColisStatusPill, ColisStatusModal } from "@/components/colis-status-menu";
 
 type LivreurMenuState = { id: string; x: number; y: number } | null;
 
@@ -32,30 +32,16 @@ function initiales(nom: string) {
 }
 
 const GROUP_BG: Record<string, string> = {
-  "en-preparation": "bg-warning/10",
-  "ramasse": "bg-primary/10",
-  "expedie": "bg-primary/10",
-  "en-livraison": "bg-primary/15",
-  "contact-client": "bg-warning/10",
-  "client": "bg-info/10",
-  "livre": "bg-success/10",
-  "reporte": "bg-warning/10",
-  "echec-livraison": "bg-destructive/10",
-  "retourne-vendeur": "bg-destructive/10",
-  "annule": "bg-muted",
+  "en-preparation": "bg-warning/10", "ramasse": "bg-primary/10", "expedie": "bg-primary/10",
+  "en-livraison": "bg-primary/15", "contact-client": "bg-warning/10", "client": "bg-info/10",
+  "livre": "bg-success/10", "reporte": "bg-warning/10", "echec-livraison": "bg-destructive/10",
+  "retourne-vendeur": "bg-destructive/10", "annule": "bg-muted",
 };
 const GROUP_TEXT: Record<string, string> = {
-  "en-preparation": "text-warning",
-  "ramasse": "text-primary",
-  "expedie": "text-primary",
-  "en-livraison": "text-primary",
-  "contact-client": "text-warning",
-  "client": "text-info",
-  "livre": "text-success",
-  "reporte": "text-warning",
-  "echec-livraison": "text-destructive",
-  "retourne-vendeur": "text-destructive",
-  "annule": "text-muted-foreground",
+  "en-preparation": "text-warning", "ramasse": "text-primary", "expedie": "text-primary",
+  "en-livraison": "text-primary", "contact-client": "text-warning", "client": "text-info",
+  "livre": "text-success", "reporte": "text-warning", "echec-livraison": "text-destructive",
+  "retourne-vendeur": "text-destructive", "annule": "text-muted-foreground",
 };
 
 function AdminPage() {
@@ -155,11 +141,7 @@ function AdminPage() {
   }, [colisAffiches]);
 
   function toggleGroup(key: string) {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
+    setCollapsed((prev) => { const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next; });
   }
 
   const livreurMenuColis = livreurMenu ? colis.find((c) => c.id === livreurMenu.id) : null;
@@ -195,15 +177,16 @@ function AdminPage() {
         <div className="mt-2"><AdminStats /></div>
         <OpsStatsPanel colis={colis} livreurs={livreurs} />
 
-        {/* Bandeau résumé par statut, cliquable pour filtrer par recherche texte (simple) */}
         <div className="mb-4 flex flex-wrap gap-2">
           {groupes.map((g) => (
             <button
               key={g.key}
               onClick={() => toggleGroup(g.key)}
-              className={`rounded-full px-3 py-1.5 text-xs font-bold ${GROUP_BG[g.key]} ${GROUP_TEXT[g.key]}`}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${GROUP_BG[g.key]} ${GROUP_TEXT[g.key]}`}
             >
-              {g.label} · {g.rows.length} · {g.total.toLocaleString("fr-FR")} DA
+              {g.label}
+              <span className="rounded-full bg-white/70 px-1.5 py-0.5 text-[10px] dark:bg-black/20">{g.rows.length}</span>
+              <span className="opacity-70">{g.total.toLocaleString("fr-FR")} DA</span>
             </button>
           ))}
         </div>
@@ -238,9 +221,10 @@ function AdminPage() {
                 <span className={`flex items-center gap-2 font-bold ${GROUP_TEXT[g.key]}`}>
                   <ChevronDown className={`h-4 w-4 transition-transform ${isCollapsed ? "-rotate-90" : ""}`} />
                   {g.label}
+                  <span className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-black dark:bg-black/20">{g.rows.length}</span>
                 </span>
                 <span className={`flex items-center gap-3 text-xs ${GROUP_TEXT[g.key]}`}>
-                  <span>{g.rows.length} colis · {g.total.toLocaleString("fr-FR")} DA</span>
+                  <span>{g.total.toLocaleString("fr-FR")} DA</span>
                   {g.bloques > 0 && (
                     <span className="rounded-full bg-destructive px-2 py-0.5 font-bold text-destructive-foreground">
                       {g.bloques} bloqué{g.bloques > 1 ? "s" : ""}
@@ -254,6 +238,7 @@ function AdminPage() {
                   {g.rows.map((c) => {
                     const bloque = g.key === "en-preparation" && Date.now() - new Date(c.date_creation).getTime() > 48 * 3600 * 1000;
                     const nNotes = notesCount[c.id] ?? 0;
+                    const premierMot = c.description ? c.description.trim().split(/\s+/)[0] : null;
                     return (
                       <div
                         key={c.id}
@@ -263,17 +248,31 @@ function AdminPage() {
                           {initiales(c.expediteur_nom || "?")}
                         </div>
                         <div className="min-w-0">
-                          <Link to="/boutique/$id" params={{ id: c.client_id }} className="font-semibold text-primary hover:underline">
+                          <Link
+                            to="/boutique/$id"
+                            params={{ id: c.client_id }}
+                            className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary transition-colors hover:bg-primary/20"
+                          >
                             {c.expediteur_nom || "Boutique"}
                           </Link>
-                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                             <span className="font-mono">{c.tracking}</span>
                             <TrackingBadge typeColis={c.type_colis} />
                             <span>· {c.destinataire_nom} · {c.destinataire_tel}</span>
+                            {premierMot && (
+                              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{premierMot}…</span>
+                            )}
                             {bloque && <span className="font-bold text-destructive">depuis plus de 48h</span>}
                           </div>
                         </div>
-                        <div className="text-xs text-muted-foreground">{c.depart} → {c.destinataire_wilaya}</div>
+                        <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                          <span>{c.depart}</span>
+                          <span>→</span>
+                          <span className="rounded-full bg-muted px-2 py-0.5 font-semibold text-muted-foreground">{c.destinataire_wilaya}</span>
+                          {c.destinataire_commune && (
+                            <span className="rounded-full bg-info/15 px-2 py-0.5 font-bold text-info">{c.destinataire_commune}</span>
+                          )}
+                        </div>
                         <button
                           type="button"
                           onClick={(e) => openLivreurMenu(e, c.id)}
@@ -321,7 +320,6 @@ function AdminPage() {
         </div>
       </section>
 
-      {/* Menu livreur (flottant, positionné) */}
       {livreurMenu && livreurMenuColis && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setLivreurMenu(null)} />
@@ -350,7 +348,6 @@ function AdminPage() {
         </>
       )}
 
-      {/* Nouveau menu de statut (gros boutons) */}
       {statutColis && (
         <ColisStatusModal
           statutActuel={statutColis.statut}
@@ -359,7 +356,6 @@ function AdminPage() {
         />
       )}
 
-      {/* Notes internes */}
       {notesColis && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-10 backdrop-blur-sm" onClick={() => { setNotesColis(null); void refresh(); }}>
           <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-card" onClick={(e) => e.stopPropagation()}>

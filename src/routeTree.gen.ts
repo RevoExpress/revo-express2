@@ -23,10 +23,12 @@ import { Route as AuthenticatedProspectionRouteImport } from './routes/_authenti
 import { Route as AuthenticatedProfilRouteImport } from './routes/_authenticated/profil'
 import { Route as AuthenticatedPrintBordereauxRouteImport } from './routes/_authenticated/print-bordereaux'
 import { Route as AuthenticatedOperationsRouteImport } from './routes/_authenticated/operations'
+import { Route as AuthenticatedMonPaiementRouteImport } from './routes/_authenticated/mon-paiement'
 import { Route as AuthenticatedMesRetoursRouteImport } from './routes/_authenticated/mes-retours'
 import { Route as AuthenticatedMesColisRouteImport } from './routes/_authenticated/mes-colis'
 import { Route as AuthenticatedLivreurRouteImport } from './routes/_authenticated/livreur'
 import { Route as AuthenticatedImportRouteImport } from './routes/_authenticated/import'
+import { Route as AuthenticatedFinanceRouteImport } from './routes/_authenticated/finance'
 import { Route as AuthenticatedFeuilleDeRouteRouteImport } from './routes/_authenticated/feuille-de-route'
 import { Route as AuthenticatedEquipeRouteImport } from './routes/_authenticated/equipe'
 import { Route as AuthenticatedComptesRouteImport } from './routes/_authenticated/comptes'
@@ -35,6 +37,7 @@ import { Route as AuthenticatedCommandesApiRouteImport } from './routes/_authent
 import { Route as AuthenticatedClesApiRouteImport } from './routes/_authenticated/cles-api'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedPrintTrackingRouteImport } from './routes/_authenticated/print.$tracking'
+import { Route as AuthenticatedPrintReversementIdRouteImport } from './routes/_authenticated/print-reversement.$id'
 import { Route as AuthenticatedColisTrackingRouteImport } from './routes/_authenticated/colis.$tracking'
 import { Route as AuthenticatedBoutiqueIdRouteImport } from './routes/_authenticated/boutique.$id'
 
@@ -111,6 +114,12 @@ const AuthenticatedOperationsRoute = AuthenticatedOperationsRouteImport.update({
   path: '/operations',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedMonPaiementRoute =
+  AuthenticatedMonPaiementRouteImport.update({
+    id: '/mon-paiement',
+    path: '/mon-paiement',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedMesRetoursRoute = AuthenticatedMesRetoursRouteImport.update({
   id: '/mes-retours',
   path: '/mes-retours',
@@ -129,6 +138,11 @@ const AuthenticatedLivreurRoute = AuthenticatedLivreurRouteImport.update({
 const AuthenticatedImportRoute = AuthenticatedImportRouteImport.update({
   id: '/import',
   path: '/import',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedFinanceRoute = AuthenticatedFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedFeuilleDeRouteRoute =
@@ -174,6 +188,12 @@ const AuthenticatedPrintTrackingRoute =
     path: '/print/$tracking',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedPrintReversementIdRoute =
+  AuthenticatedPrintReversementIdRouteImport.update({
+    id: '/print-reversement/$id',
+    path: '/print-reversement/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedColisTrackingRoute =
   AuthenticatedColisTrackingRouteImport.update({
     id: '/colis/$tracking',
@@ -200,10 +220,12 @@ export interface FileRoutesByFullPath {
   '/comptes': typeof AuthenticatedComptesRoute
   '/equipe': typeof AuthenticatedEquipeRoute
   '/feuille-de-route': typeof AuthenticatedFeuilleDeRouteRoute
+  '/finance': typeof AuthenticatedFinanceRoute
   '/import': typeof AuthenticatedImportRoute
   '/livreur': typeof AuthenticatedLivreurRoute
   '/mes-colis': typeof AuthenticatedMesColisRoute
   '/mes-retours': typeof AuthenticatedMesRetoursRoute
+  '/mon-paiement': typeof AuthenticatedMonPaiementRoute
   '/operations': typeof AuthenticatedOperationsRoute
   '/print-bordereaux': typeof AuthenticatedPrintBordereauxRoute
   '/profil': typeof AuthenticatedProfilRoute
@@ -213,6 +235,7 @@ export interface FileRoutesByFullPath {
   '/track/$code': typeof TrackCodeRoute
   '/boutique/$id': typeof AuthenticatedBoutiqueIdRoute
   '/colis/$tracking': typeof AuthenticatedColisTrackingRoute
+  '/print-reversement/$id': typeof AuthenticatedPrintReversementIdRoute
   '/print/$tracking': typeof AuthenticatedPrintTrackingRoute
 }
 export interface FileRoutesByTo {
@@ -229,10 +252,12 @@ export interface FileRoutesByTo {
   '/comptes': typeof AuthenticatedComptesRoute
   '/equipe': typeof AuthenticatedEquipeRoute
   '/feuille-de-route': typeof AuthenticatedFeuilleDeRouteRoute
+  '/finance': typeof AuthenticatedFinanceRoute
   '/import': typeof AuthenticatedImportRoute
   '/livreur': typeof AuthenticatedLivreurRoute
   '/mes-colis': typeof AuthenticatedMesColisRoute
   '/mes-retours': typeof AuthenticatedMesRetoursRoute
+  '/mon-paiement': typeof AuthenticatedMonPaiementRoute
   '/operations': typeof AuthenticatedOperationsRoute
   '/print-bordereaux': typeof AuthenticatedPrintBordereauxRoute
   '/profil': typeof AuthenticatedProfilRoute
@@ -242,6 +267,7 @@ export interface FileRoutesByTo {
   '/track/$code': typeof TrackCodeRoute
   '/boutique/$id': typeof AuthenticatedBoutiqueIdRoute
   '/colis/$tracking': typeof AuthenticatedColisTrackingRoute
+  '/print-reversement/$id': typeof AuthenticatedPrintReversementIdRoute
   '/print/$tracking': typeof AuthenticatedPrintTrackingRoute
 }
 export interface FileRoutesById {
@@ -260,10 +286,12 @@ export interface FileRoutesById {
   '/_authenticated/comptes': typeof AuthenticatedComptesRoute
   '/_authenticated/equipe': typeof AuthenticatedEquipeRoute
   '/_authenticated/feuille-de-route': typeof AuthenticatedFeuilleDeRouteRoute
+  '/_authenticated/finance': typeof AuthenticatedFinanceRoute
   '/_authenticated/import': typeof AuthenticatedImportRoute
   '/_authenticated/livreur': typeof AuthenticatedLivreurRoute
   '/_authenticated/mes-colis': typeof AuthenticatedMesColisRoute
   '/_authenticated/mes-retours': typeof AuthenticatedMesRetoursRoute
+  '/_authenticated/mon-paiement': typeof AuthenticatedMonPaiementRoute
   '/_authenticated/operations': typeof AuthenticatedOperationsRoute
   '/_authenticated/print-bordereaux': typeof AuthenticatedPrintBordereauxRoute
   '/_authenticated/profil': typeof AuthenticatedProfilRoute
@@ -273,6 +301,7 @@ export interface FileRoutesById {
   '/track/$code': typeof TrackCodeRoute
   '/_authenticated/boutique/$id': typeof AuthenticatedBoutiqueIdRoute
   '/_authenticated/colis/$tracking': typeof AuthenticatedColisTrackingRoute
+  '/_authenticated/print-reversement/$id': typeof AuthenticatedPrintReversementIdRoute
   '/_authenticated/print/$tracking': typeof AuthenticatedPrintTrackingRoute
 }
 export interface FileRouteTypes {
@@ -291,10 +320,12 @@ export interface FileRouteTypes {
     | '/comptes'
     | '/equipe'
     | '/feuille-de-route'
+    | '/finance'
     | '/import'
     | '/livreur'
     | '/mes-colis'
     | '/mes-retours'
+    | '/mon-paiement'
     | '/operations'
     | '/print-bordereaux'
     | '/profil'
@@ -304,6 +335,7 @@ export interface FileRouteTypes {
     | '/track/$code'
     | '/boutique/$id'
     | '/colis/$tracking'
+    | '/print-reversement/$id'
     | '/print/$tracking'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -320,10 +352,12 @@ export interface FileRouteTypes {
     | '/comptes'
     | '/equipe'
     | '/feuille-de-route'
+    | '/finance'
     | '/import'
     | '/livreur'
     | '/mes-colis'
     | '/mes-retours'
+    | '/mon-paiement'
     | '/operations'
     | '/print-bordereaux'
     | '/profil'
@@ -333,6 +367,7 @@ export interface FileRouteTypes {
     | '/track/$code'
     | '/boutique/$id'
     | '/colis/$tracking'
+    | '/print-reversement/$id'
     | '/print/$tracking'
   id:
     | '__root__'
@@ -350,10 +385,12 @@ export interface FileRouteTypes {
     | '/_authenticated/comptes'
     | '/_authenticated/equipe'
     | '/_authenticated/feuille-de-route'
+    | '/_authenticated/finance'
     | '/_authenticated/import'
     | '/_authenticated/livreur'
     | '/_authenticated/mes-colis'
     | '/_authenticated/mes-retours'
+    | '/_authenticated/mon-paiement'
     | '/_authenticated/operations'
     | '/_authenticated/print-bordereaux'
     | '/_authenticated/profil'
@@ -363,6 +400,7 @@ export interface FileRouteTypes {
     | '/track/$code'
     | '/_authenticated/boutique/$id'
     | '/_authenticated/colis/$tracking'
+    | '/_authenticated/print-reversement/$id'
     | '/_authenticated/print/$tracking'
   fileRoutesById: FileRoutesById
 }
@@ -477,6 +515,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOperationsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/mon-paiement': {
+      id: '/_authenticated/mon-paiement'
+      path: '/mon-paiement'
+      fullPath: '/mon-paiement'
+      preLoaderRoute: typeof AuthenticatedMonPaiementRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/mes-retours': {
       id: '/_authenticated/mes-retours'
       path: '/mes-retours'
@@ -503,6 +548,13 @@ declare module '@tanstack/react-router' {
       path: '/import'
       fullPath: '/import'
       preLoaderRoute: typeof AuthenticatedImportRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/finance': {
+      id: '/_authenticated/finance'
+      path: '/finance'
+      fullPath: '/finance'
+      preLoaderRoute: typeof AuthenticatedFinanceRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/feuille-de-route': {
@@ -561,6 +613,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPrintTrackingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/print-reversement/$id': {
+      id: '/_authenticated/print-reversement/$id'
+      path: '/print-reversement/$id'
+      fullPath: '/print-reversement/$id'
+      preLoaderRoute: typeof AuthenticatedPrintReversementIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/colis/$tracking': {
       id: '/_authenticated/colis/$tracking'
       path: '/colis/$tracking'
@@ -586,10 +645,12 @@ interface AuthenticatedRouteChildren {
   AuthenticatedComptesRoute: typeof AuthenticatedComptesRoute
   AuthenticatedEquipeRoute: typeof AuthenticatedEquipeRoute
   AuthenticatedFeuilleDeRouteRoute: typeof AuthenticatedFeuilleDeRouteRoute
+  AuthenticatedFinanceRoute: typeof AuthenticatedFinanceRoute
   AuthenticatedImportRoute: typeof AuthenticatedImportRoute
   AuthenticatedLivreurRoute: typeof AuthenticatedLivreurRoute
   AuthenticatedMesColisRoute: typeof AuthenticatedMesColisRoute
   AuthenticatedMesRetoursRoute: typeof AuthenticatedMesRetoursRoute
+  AuthenticatedMonPaiementRoute: typeof AuthenticatedMonPaiementRoute
   AuthenticatedOperationsRoute: typeof AuthenticatedOperationsRoute
   AuthenticatedPrintBordereauxRoute: typeof AuthenticatedPrintBordereauxRoute
   AuthenticatedProfilRoute: typeof AuthenticatedProfilRoute
@@ -598,6 +659,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSuiviLivreursRoute: typeof AuthenticatedSuiviLivreursRoute
   AuthenticatedBoutiqueIdRoute: typeof AuthenticatedBoutiqueIdRoute
   AuthenticatedColisTrackingRoute: typeof AuthenticatedColisTrackingRoute
+  AuthenticatedPrintReversementIdRoute: typeof AuthenticatedPrintReversementIdRoute
   AuthenticatedPrintTrackingRoute: typeof AuthenticatedPrintTrackingRoute
 }
 
@@ -609,10 +671,12 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedComptesRoute: AuthenticatedComptesRoute,
   AuthenticatedEquipeRoute: AuthenticatedEquipeRoute,
   AuthenticatedFeuilleDeRouteRoute: AuthenticatedFeuilleDeRouteRoute,
+  AuthenticatedFinanceRoute: AuthenticatedFinanceRoute,
   AuthenticatedImportRoute: AuthenticatedImportRoute,
   AuthenticatedLivreurRoute: AuthenticatedLivreurRoute,
   AuthenticatedMesColisRoute: AuthenticatedMesColisRoute,
   AuthenticatedMesRetoursRoute: AuthenticatedMesRetoursRoute,
+  AuthenticatedMonPaiementRoute: AuthenticatedMonPaiementRoute,
   AuthenticatedOperationsRoute: AuthenticatedOperationsRoute,
   AuthenticatedPrintBordereauxRoute: AuthenticatedPrintBordereauxRoute,
   AuthenticatedProfilRoute: AuthenticatedProfilRoute,
@@ -621,6 +685,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSuiviLivreursRoute: AuthenticatedSuiviLivreursRoute,
   AuthenticatedBoutiqueIdRoute: AuthenticatedBoutiqueIdRoute,
   AuthenticatedColisTrackingRoute: AuthenticatedColisTrackingRoute,
+  AuthenticatedPrintReversementIdRoute: AuthenticatedPrintReversementIdRoute,
   AuthenticatedPrintTrackingRoute: AuthenticatedPrintTrackingRoute,
 }
 

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Menu, X, LogOut, User as UserIcon, Download, ArrowRight, Plus, Package, Undo2, Search, Inbox, Loader2 } from "lucide-react";
+import { Menu, X, LogOut, User as UserIcon, Download, ArrowRight, Plus, Package, Undo2, Search, Inbox, Loader2, Wallet } from "lucide-react";
 import { useAuth, homeForRole } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,7 +23,6 @@ import {
 import logoLight from "@/assets/logo-light.png";
 import logoDark from "@/assets/logo-dark.png";
 
-// Extrait un tracking valide de n'importe quelle saisie (minuscules, lien collé, etc.)
 function normalizeTracking(input: string): string | null {
   const raw = input.trim().toUpperCase().replace(/\s+/g, "");
   if (!raw) return null;
@@ -34,7 +33,6 @@ function normalizeTracking(input: string): string | null {
   return null;
 }
 
-// Icônes rondes de la barre blanche
 const iconBtn =
   "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground/65 transition-all hover:bg-muted hover:text-foreground active:scale-95";
 
@@ -80,7 +78,6 @@ export function SiteNav() {
     const q = searchValue.trim();
     if (!q) return;
 
-    // Visiteur non connecté : tracking uniquement (confidentialité)
     if (!user) {
       const code = normalizeTracking(q);
       if (!code) {
@@ -92,7 +89,6 @@ export function SiteNav() {
       return;
     }
 
-    // Connecté : recherche multi-critères dans ce que le compte a le droit de voir (RLS)
     setSearchBusy(true);
     setSearchError(false);
     const safe = q.replace(/[,()]/g, " ").trim();
@@ -136,13 +132,18 @@ export function SiteNav() {
   ];
   if (user) navItems.push({ to: "/mes-colis", label: t("nav.dashboard") });
 
-  // Liens réservés aux espaces internes
   if (role === "admin") {
     navItems.push({ to: "/comptes", label: "Gestion des comptes" });
     navItems.push({ to: "/cles-api", label: "Clés API" });
   }
+  if (role === "admin" || role === "admin_operations") {
+    navItems.push({ to: "/finance", label: "Finance" });
+  }
   if (role === "admin" || role === "admin_commercial" || role === "commercial") {
     navItems.push({ to: "/prospection", label: "Prospection" });
+  }
+  if (!role || role === "client") {
+    navItems.push({ to: "/mon-paiement", label: "Mon paiement" });
   }
 
   const spaceLabel =
@@ -159,7 +160,6 @@ export function SiteNav() {
     <>
       <header className="sticky top-0 z-40 w-full border-b border-border bg-background/90 shadow-soft backdrop-blur-md">
         <div className="relative mx-auto flex h-16 items-center justify-between gap-2 px-2 md:h-20 md:px-4">
-          {/* GAUCHE — hamburger */}
           <button
             type="button"
             onClick={() => setOpen(true)}
@@ -169,7 +169,6 @@ export function SiteNav() {
             <Menu className="h-6 w-6" />
           </button>
 
-          {/* CENTRE — logo grand, centré */}
           <Link
             to="/"
             className="pointer-events-auto flex shrink-0 items-center md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2"
@@ -179,7 +178,6 @@ export function SiteNav() {
             <img src={logoDark} alt="REVO EXPRESS" className="hidden h-14 w-auto dark:block md:h-[4.5rem]" />
           </Link>
 
-          {/* DROITE — loupe / thème / langue / installer / ➕ / cloche / Commander ou compte */}
           <div className="flex shrink-0 items-center gap-0.5">
             <button
               type="button"
@@ -240,13 +238,28 @@ export function SiteNav() {
                       <span className="font-semibold">Commandes web</span>
                     </Link>
                   </DropdownMenuItem>
+                  {(!role || role === "client") && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/mon-paiement" className="flex w-full cursor-pointer items-center gap-2">
+                        <Wallet className="h-4 w-4 text-primary" />
+                        <span className="font-semibold">Mon paiement</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {(role === "admin" || role === "admin_operations") && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/finance" className="flex w-full cursor-pointer items-center gap-2">
+                        <Wallet className="h-4 w-4 text-primary" />
+                        <span className="font-semibold">Finance</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
 
             {user && <NotificationsBell />}
 
-            {/* séparateur discret */}
             <span className="mx-1.5 hidden h-6 w-px bg-border md:block" />
 
             {user ? (
@@ -296,7 +309,6 @@ export function SiteNav() {
         </div>
       </header>
 
-      {/* Fenêtre de recherche (loupe) */}
       {searchOpen && (
         <div
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-16"
@@ -345,7 +357,6 @@ export function SiteNav() {
               </p>
             )}
 
-            {/* Résultats (comptes connectés) — clic = fenêtre de suivi */}
             {user && results !== null && (
               <div className="mt-3 max-h-[50vh] overflow-y-auto rounded-lg border border-border">
                 {results.length === 0 ? (
@@ -379,7 +390,6 @@ export function SiteNav() {
         </div>
       )}
 
-      {/* Fenêtre de suivi (résultat cliqué) */}
       {histo && (
         <ColisHistoriqueModal
           tracking={histo.tracking}
@@ -388,7 +398,6 @@ export function SiteNav() {
         />
       )}
 
-      {/* Menu latéral */}
       {open && (
         <>
           <div

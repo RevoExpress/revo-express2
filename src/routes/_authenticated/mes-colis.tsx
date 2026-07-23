@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Package, Plus, Loader2, Search, TrendingUp, Clock, CheckCircle2, XCircle,
@@ -204,7 +204,6 @@ function MesColisPage() {
     <div className="flex min-h-screen flex-col">
       <SiteNav />
       <section className="container mx-auto flex-1 px-4 py-10">
-        {/* Header */}
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="text-xs font-bold uppercase tracking-[0.25em] text-primary">Tableau de bord</div>
@@ -249,7 +248,6 @@ function MesColisPage() {
 
         <ClientDashboardPanel colis={colis} />
 
-        {/* Stat cards */}
         <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard icon={Package} label="Total" value={stats.total} />
           <StatCard icon={Clock} label="En cours" value={stats.enCours} accent="info" />
@@ -258,7 +256,6 @@ function MesColisPage() {
           <StatCard icon={TrendingUp} label="COD encaissé" value={`${stats.cod} DA`} accent="primary" />
         </div>
 
-        {/* Filter chips */}
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <button onClick={() => setStatutFilter("all")} className={chipCls(statutFilter === "all")}>
             Tous <span className="ml-1 rounded-full bg-background/30 px-1.5 text-[10px]">{colis.length}</span>
@@ -271,7 +268,6 @@ function MesColisPage() {
           ))}
         </div>
 
-        {/* Search + filters */}
         <div className="mb-4 grid gap-3 rounded-xl border border-border bg-card p-3 md:grid-cols-[1fr_auto_auto_auto_auto_auto]">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -349,7 +345,6 @@ function MesColisPage() {
           </div>
         ) : (
           <div className="overflow-hidden rounded-xl border border-border bg-card">
-            {/* Select-all bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-2.5">
               <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
                 <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
@@ -362,7 +357,6 @@ function MesColisPage() {
               </div>
             </div>
 
-            {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/30">
@@ -382,6 +376,7 @@ function MesColisPage() {
                   {pageRows.map((c) => {
                     const isSel = selected.has(c.id);
                     const peutSupprimer = c.statut === "en-preparation";
+                    const premierMot = c.description ? c.description.trim().split(/\s+/)[0] : null;
                     return (
                       <tr key={c.id} className={`border-t border-border transition-colors hover:bg-muted/30 ${isSel ? "bg-primary/5" : ""}`}>
                         <td className="px-3 py-3">
@@ -424,12 +419,22 @@ function MesColisPage() {
                         </td>
                         <td className="px-3 py-3">
                           <div className="font-medium">{c.destinataire_nom}</div>
-                          <div className="text-xs text-muted-foreground">{c.destinataire_tel}</div>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <span>{c.destinataire_tel}</span>
+                            {premierMot && <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold">{premierMot}…</span>}
+                          </div>
                         </td>
                         <td className="px-3 py-3">
-                          <span className="inline-block rounded border border-border bg-background px-2 py-0.5 text-xs">
-                            {c.destinataire_wilaya ?? "—"}
-                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            <span className="inline-block rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                              {c.destinataire_wilaya ?? "—"}
+                            </span>
+                            {c.destinataire_commune && (
+                              <span className="inline-block rounded-full bg-info/15 px-2 py-0.5 text-xs font-bold text-info">
+                                {c.destinataire_commune}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-3 py-3 text-xs text-muted-foreground">
                           {new Date(c.date_creation).toLocaleDateString("fr-FR")}
@@ -468,7 +473,6 @@ function MesColisPage() {
               </table>
             </div>
 
-            {/* Pagination */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-muted/30 px-4 py-2.5 text-sm">
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Par page&nbsp;:</span>
@@ -509,7 +513,6 @@ function MesColisPage() {
       </section>
       <SiteFooter />
 
-      {/* Fenêtre d'historique (clic sur le statut) */}
       {histoColis && (
         <ColisHistoriqueModal
           tracking={histoColis.tracking}

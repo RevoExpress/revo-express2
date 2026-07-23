@@ -181,8 +181,14 @@ function OperationsPage() {
 
         <div className="mb-4 flex flex-wrap gap-2">
           {groupes.map((g) => (
-            <button key={g.key} onClick={() => toggleGroup(g.key)} className={`rounded-full px-3 py-1.5 text-xs font-bold ${GROUP_BG[g.key]} ${GROUP_TEXT[g.key]}`}>
-              {g.label} · {g.rows.length} · {g.total.toLocaleString("fr-FR")} DA
+            <button
+              key={g.key}
+              onClick={() => toggleGroup(g.key)}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${GROUP_BG[g.key]} ${GROUP_TEXT[g.key]}`}
+            >
+              {g.label}
+              <span className="rounded-full bg-white/70 px-1.5 py-0.5 text-[10px] dark:bg-black/20">{g.rows.length}</span>
+              <span className="opacity-70">{g.total.toLocaleString("fr-FR")} DA</span>
             </button>
           ))}
         </div>
@@ -208,10 +214,12 @@ function OperationsPage() {
             <div key={g.key} className="mb-3 overflow-hidden rounded-2xl border border-border">
               <button onClick={() => toggleGroup(g.key)} className={`flex w-full items-center justify-between px-4 py-2.5 ${GROUP_BG[g.key]}`}>
                 <span className={`flex items-center gap-2 font-bold ${GROUP_TEXT[g.key]}`}>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${isCollapsed ? "-rotate-90" : ""}`} />{g.label}
+                  <ChevronDown className={`h-4 w-4 transition-transform ${isCollapsed ? "-rotate-90" : ""}`} />
+                  {g.label}
+                  <span className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-black dark:bg-black/20">{g.rows.length}</span>
                 </span>
                 <span className={`flex items-center gap-3 text-xs ${GROUP_TEXT[g.key]}`}>
-                  <span>{g.rows.length} colis · {g.total.toLocaleString("fr-FR")} DA</span>
+                  <span>{g.total.toLocaleString("fr-FR")} DA</span>
                   {g.bloques > 0 && <span className="rounded-full bg-destructive px-2 py-0.5 font-bold text-destructive-foreground">{g.bloques} bloqué{g.bloques > 1 ? "s" : ""}</span>}
                 </span>
               </button>
@@ -220,19 +228,34 @@ function OperationsPage() {
                   {g.rows.map((c) => {
                     const bloque = g.key === "en-preparation" && Date.now() - new Date(c.date_creation).getTime() > 48 * 3600 * 1000;
                     const nNotes = notesCount[c.id] ?? 0;
+                    const premierMot = c.description ? c.description.trim().split(/\s+/)[0] : null;
                     return (
                       <div key={c.id} className={`grid grid-cols-1 gap-2 px-4 py-3 md:grid-cols-[32px_1fr_140px_190px_36px_80px_auto] md:items-center md:gap-3 ${bloque ? "border-l-4 border-destructive" : ""}`}>
                         <div className="hidden h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary md:flex">{initiales(c.expediteur_nom || "?")}</div>
                         <div className="min-w-0">
-                          <Link to="/boutique/$id" params={{ id: c.client_id }} className="font-semibold text-primary hover:underline">{c.expediteur_nom || "Boutique"}</Link>
-                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                          <Link
+                            to="/boutique/$id"
+                            params={{ id: c.client_id }}
+                            className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary transition-colors hover:bg-primary/20"
+                          >
+                            {c.expediteur_nom || "Boutique"}
+                          </Link>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                             <span className="font-mono">{c.tracking}</span>
                             <TrackingBadge typeColis={c.type_colis} />
                             <span>· {c.destinataire_nom} · {c.destinataire_tel}</span>
+                            {premierMot && <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{premierMot}…</span>}
                             {bloque && <span className="font-bold text-destructive">depuis plus de 48h</span>}
                           </div>
                         </div>
-                        <div className="text-xs text-muted-foreground">{c.depart} → {c.destinataire_wilaya}</div>
+                        <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                          <span>{c.depart}</span>
+                          <span>→</span>
+                          <span className="rounded-full bg-muted px-2 py-0.5 font-semibold text-muted-foreground">{c.destinataire_wilaya}</span>
+                          {c.destinataire_commune && (
+                            <span className="rounded-full bg-info/15 px-2 py-0.5 font-bold text-info">{c.destinataire_commune}</span>
+                          )}
+                        </div>
                         <button type="button" onClick={(e) => openLivreurMenu(e, c.id)} className="inline-flex h-8 items-center gap-2 rounded-full border border-dashed border-border bg-background px-3 text-xs font-medium text-muted-foreground hover:border-primary/50 hover:text-foreground">
                           <UserCircle2 className="h-3.5 w-3.5 shrink-0" />
                           <span className="flex-1 truncate text-left">{livreurName(c.livreur_id) ?? "Assigner…"}</span>
