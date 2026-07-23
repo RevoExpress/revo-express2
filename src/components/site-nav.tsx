@@ -205,7 +205,7 @@ export function SiteNav() {
             )}
 
             {user && (
-              <DropdownMenu>
+              <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <button type="button" aria-label={t("nav.quick.new")} title={t("nav.quick.new")} className={iconBtn}>
                     <Plus className="h-5 w-5" />
@@ -263,7 +263,7 @@ export function SiteNav() {
             <span className="mx-1.5 hidden h-6 w-px bg-border md:block" />
 
             {user ? (
-              <DropdownMenu>
+              <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <button type="button" aria-label={spaceLabel} title={spaceLabel} className={iconBtn}>
                     <UserIcon className="h-5 w-5" />
