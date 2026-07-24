@@ -15,6 +15,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { TrackingBadge } from "@/components/tracking-badge";
 import { ColisHistoriqueModal } from "@/components/colis-historique-modal";
 import { TrackingActions } from "@/components/tracking-actions";
+import { ColisMessagesButton } from "@/components/colis-messages-button";
 import { ClientDashboardPanel } from "@/components/client-dashboard-panel";
 import { STATUTS, COMMUNES } from "@/lib/tarifs";
 import { exportColisToXLSX } from "@/lib/export-csv";
@@ -444,6 +445,7 @@ function MesColisPage() {
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-end gap-1">
+                            <ColisMessagesButton colis={c} />
                             <TrackingActions colis={c} />
                             {c.statut === "en-preparation" && (
                               <Link to="/commander" search={{ colis: c.id } as any}>

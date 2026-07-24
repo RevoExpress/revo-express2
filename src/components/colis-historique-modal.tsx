@@ -1,16 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { X, Loader2, Clock, ArrowRight, Package, MessageSquare } from "lucide-react";
+import { X, Loader2, Clock, ArrowRight, Package, MessageSquare, MessageCircle } from "lucide-react";
 import { getPublicTracking, type PublicEvent } from "@/lib/tracking.functions";
 import { STATUTS } from "@/lib/tarifs";
 import { TrackingBadge } from "@/components/tracking-badge";
 import { ColisCommentaires } from "@/components/colis-commentaires";
 import { useAuth } from "@/hooks/use-auth";
 
-// Fenêtre d'historique façon Yalidine :
-// gros statut actuel en tête + historique détaillé groupé par date.
-// Le staff voit aussi les notes internes (jamais les clients).
 export function ColisHistoriqueModal({
   tracking,
   typeColis,
@@ -29,7 +26,7 @@ export function ColisHistoriqueModal({
   const [colisId, setColisId] = useState<string | null>(null);
   const [events, setEvents] = useState<PublicEvent[]>([]);
   const [notFound, setNotFound] = useState(false);
-  const [tab, setTab] = useState<"historique" | "notes">("historique");
+  const [tab, setTab] = useState<"historique" | "commentaires" | "notes">("historique");
 
   useEffect(() => {
     let alive = true;
@@ -58,7 +55,6 @@ export function ColisHistoriqueModal({
     };
   }, [tracking]);
 
-  // Échap pour fermer
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -76,7 +72,6 @@ export function ColisHistoriqueModal({
   };
   const statutCls = colorMap[s?.color ?? "info"];
 
-  // Groupement des évènements par date
   const groups: Array<{ date: string; items: PublicEvent[] }> = [];
   for (const e of events) {
     const d = new Date(e.created_at).toLocaleDateString("fr-FR", {
@@ -103,7 +98,6 @@ export function ColisHistoriqueModal({
         className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-card"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* En-tête */}
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
           <div className="flex min-w-0 items-center gap-2">
             <h2 className="shrink-0 font-bold">Suivi du colis</h2>
@@ -134,7 +128,6 @@ export function ColisHistoriqueModal({
           </div>
         ) : (
           <>
-            {/* Gros statut actuel */}
             <div className="border-b border-border bg-secondary/50 px-6 py-6 text-center">
               <div
                 className={`inline-block rounded-full px-4 py-1.5 text-lg font-black ${statutCls}`}
@@ -149,12 +142,12 @@ export function ColisHistoriqueModal({
               )}
             </div>
 
-            {/* Onglets : Historique / Notes internes (staff uniquement) */}
-            {isStaff && colisId && (
-              <div className="flex gap-1 border-b border-border px-5 pt-3">
+            {/* Onglets : Historique / Commentaires (tout le monde) / Notes internes (staff) */}
+            {colisId && (
+              <div className="flex gap-1 overflow-x-auto border-b border-border px-5 pt-3">
                 <button
                   onClick={() => setTab("historique")}
-                  className={`rounded-t-lg px-4 py-2 text-sm font-bold transition-colors ${
+                  className={`shrink-0 rounded-t-lg px-4 py-2 text-sm font-bold transition-colors ${
                     tab === "historique"
                       ? "border-b-2 border-primary text-primary"
                       : "text-muted-foreground hover:text-foreground"
@@ -164,26 +157,41 @@ export function ColisHistoriqueModal({
                   Historique
                 </button>
                 <button
-                  onClick={() => setTab("notes")}
-                  className={`rounded-t-lg px-4 py-2 text-sm font-bold transition-colors ${
-                    tab === "notes"
+                  onClick={() => setTab("commentaires")}
+                  className={`shrink-0 rounded-t-lg px-4 py-2 text-sm font-bold transition-colors ${
+                    tab === "commentaires"
                       ? "border-b-2 border-primary text-primary"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <MessageSquare className="mr-1.5 inline h-4 w-4" />
-                  Notes internes
+                  <MessageCircle className="mr-1.5 inline h-4 w-4" />
+                  Commentaires
                 </button>
+                {isStaff && (
+                  <button
+                    onClick={() => setTab("notes")}
+                    className={`shrink-0 rounded-t-lg px-4 py-2 text-sm font-bold transition-colors ${
+                      tab === "notes"
+                        ? "border-b-2 border-primary text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <MessageSquare className="mr-1.5 inline h-4 w-4" />
+                    Notes internes
+                  </button>
+                )}
               </div>
             )}
 
-            {/* Notes internes (staff) */}
-            {isStaff && colisId && tab === "notes" ? (
+            {colisId && tab === "notes" && isStaff ? (
               <div className="max-h-[50vh] overflow-y-auto px-5 py-4">
                 <ColisCommentaires colisId={colisId} />
               </div>
+            ) : colisId && tab === "commentaires" ? (
+              <div className="max-h-[50vh] overflow-y-auto px-5 py-4">
+                <ColisCommentaires colisId={colisId} visibleClient />
+              </div>
             ) : (
-              /* Historique détaillé groupé par date */
               <div className="max-h-[50vh] overflow-y-auto px-5 py-4">
                 {!isStaff && (
                   <h3 className="mb-3 flex items-center gap-2 text-sm font-bold">
@@ -231,7 +239,6 @@ export function ColisHistoriqueModal({
               </div>
             )}
 
-            {/* Pied */}
             <div className="border-t border-border px-5 py-3 text-right">
               <Link
                 to="/track/$code"

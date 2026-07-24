@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Package, Phone, MapPin, Store } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { ColisMessagesButton } from "@/components/colis-messages-button";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { TrackingBadge } from "@/components/tracking-badge";
@@ -161,7 +162,8 @@ function BoutiquePage() {
                         <td className="px-3 py-2 text-right font-bold">{c.prix_colis} DA</td>
                         <td className="px-3 py-2 text-right">
                           <div className="flex justify-end gap-1">
-                            <TrackingActions colis={c} />
+                          <ColisMessagesButton colis={c} />
+                          <TrackingActions colis={c} />
                             <Link to="/commander" search={{ colis: c.id } as any}>
                               <Button size="icon" variant="outline" className="h-8 w-8 text-muted-foreground" title="Modifier">
                                 <Pencil className="h-4 w-4" />

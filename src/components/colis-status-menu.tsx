@@ -9,7 +9,9 @@ const STATUT_HEX: Record<string, string> = {
   "expedie": "#fb923c",
   "en-livraison": "#f97316",
   "contact-client": "#fcd34d",
-  "client": "#38bdf8",
+  "client-injoignable-1": "#fbbf24",
+  "client-injoignable-2": "#f97316",
+  "client-injoignable-3": "#dc2626",
   "livre": "#22c55e",
   "reporte": "#fcd34d",
   "echec-livraison": "#dc2626",
@@ -24,7 +26,9 @@ const STATUT_PILL: Record<string, string> = {
   "expedie": "border-primary/40 bg-primary/10 text-primary",
   "en-livraison": "border-primary/50 bg-primary/15 text-primary",
   "contact-client": "border-warning/40 bg-warning/10 text-warning",
-  "client": "border-info/40 bg-info/10 text-info",
+  "client-injoignable-1": "border-warning/40 bg-warning/10 text-warning",
+  "client-injoignable-2": "border-orange-400/50 bg-orange-500/15 text-orange-600",
+  "client-injoignable-3": "border-destructive/40 bg-destructive/10 text-destructive",
   "livre": "border-success/40 bg-success/10 text-success",
   "reporte": "border-warning/40 bg-warning/10 text-warning",
   "echec-livraison": "border-destructive/40 bg-destructive/10 text-destructive",
@@ -51,8 +55,6 @@ export function ColisStatusPill({
   );
 }
 
-// Fenêtre de choix — gros boutons, statuts fréquents en avant,
-// le reste replié sous "Autres statuts" pour éviter les clics ratés.
 export function ColisStatusModal({
   statutActuel, onChoose, onClose,
 }: { statutActuel: string; onChoose: (key: string) => void; onClose: () => void }) {

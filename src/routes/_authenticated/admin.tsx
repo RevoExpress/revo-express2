@@ -2,7 +2,7 @@ import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Loader2, Package, Download, UserCircle2, LayoutDashboard, Search, UserX,
-  ChevronDown, MessageSquare, X, Pencil, Trash2,
+  ChevronDown, Pencil, Trash2,
 } from "lucide-react";
 import { ProPageHeader } from "@/components/pro-page-header";
 import { toast } from "sonner";
@@ -15,10 +15,11 @@ import { STATUTS } from "@/lib/tarifs";
 import { exportColisToXLSX } from "@/lib/export-csv";
 import { TrackingBadge } from "@/components/tracking-badge";
 import { TrackingActions } from "@/components/tracking-actions";
+import { ColisMessagesButton } from "@/components/colis-messages-button";
 import { AdminStats } from "@/components/admin-stats";
 import { OpsStatsPanel } from "@/components/ops-stats-panel";
-import { ColisCommentaires } from "@/components/colis-commentaires";
 import { ColisStatusPill, ColisStatusModal } from "@/components/colis-status-menu";
+import { boutiqueColorClass } from "@/lib/boutique-colors";
 
 type LivreurMenuState = { id: string; x: number; y: number } | null;
 
@@ -33,13 +34,15 @@ function initiales(nom: string) {
 
 const GROUP_BG: Record<string, string> = {
   "en-preparation": "bg-warning/10", "ramasse": "bg-primary/10", "expedie": "bg-primary/10",
-  "en-livraison": "bg-primary/15", "contact-client": "bg-warning/10", "client": "bg-info/10",
+  "en-livraison": "bg-primary/15", "contact-client": "bg-warning/10",
+  "client-injoignable-1": "bg-warning/10", "client-injoignable-2": "bg-orange-500/10", "client-injoignable-3": "bg-destructive/10",
   "livre": "bg-success/10", "reporte": "bg-warning/10", "echec-livraison": "bg-destructive/10",
   "retourne-vendeur": "bg-destructive/10", "annule": "bg-muted",
 };
 const GROUP_TEXT: Record<string, string> = {
   "en-preparation": "text-warning", "ramasse": "text-primary", "expedie": "text-primary",
-  "en-livraison": "text-primary", "contact-client": "text-warning", "client": "text-info",
+  "en-livraison": "text-primary", "contact-client": "text-warning",
+  "client-injoignable-1": "text-warning", "client-injoignable-2": "text-orange-600", "client-injoignable-3": "text-destructive",
   "livre": "text-success", "reporte": "text-warning", "echec-livraison": "text-destructive",
   "retourne-vendeur": "text-destructive", "annule": "text-muted-foreground",
 };
@@ -51,7 +54,6 @@ function AdminPage() {
   const [recherche, setRecherche] = useState("");
   const [livreurMenu, setLivreurMenu] = useState<LivreurMenuState>(null);
   const [statutColis, setStatutColis] = useState<any | null>(null);
-  const [notesColis, setNotesColis] = useState<any | null>(null);
   const [notesCount, setNotesCount] = useState<Record<string, number>>({});
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set(["livre", "annule"]));
@@ -251,7 +253,7 @@ function AdminPage() {
                           <Link
                             to="/boutique/$id"
                             params={{ id: c.client_id }}
-                            className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary transition-colors hover:bg-primary/20"
+                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold transition-opacity hover:opacity-80 ${boutiqueColorClass(c.client_id)}`}
                           >
                             {c.expediteur_nom || "Boutique"}
                           </Link>
@@ -282,10 +284,7 @@ function AdminPage() {
                           <span className="flex-1 truncate text-left">{livreurName(c.livreur_id) ?? "Assigner…"}</span>
                           <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
                         </button>
-                        <button onClick={() => setNotesColis(c)} title="Notes" className="relative flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground hover:border-primary/50 hover:text-primary">
-                          <MessageSquare className="h-4 w-4" />
-                          {nNotes > 0 && <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-black text-white">{nNotes}</span>}
-                        </button>
+                        <ColisMessagesButton colis={c} count={nNotes} />
                         <div className="text-right font-bold">{c.prix_colis} DA</div>
                         <div className="flex justify-end gap-1">
                           <ColisStatusPill statut={c.statut} onClick={() => setStatutColis(c)} />
@@ -355,26 +354,6 @@ function AdminPage() {
           onClose={() => setStatutColis(null)}
         />
       )}
-
-      {notesColis && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-10 backdrop-blur-sm" onClick={() => { setNotesColis(null); void refresh(); }}>
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-card" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
-              <div className="flex min-w-0 items-center gap-2">
-                <MessageSquare className="h-5 w-5 shrink-0 text-primary" />
-                <h2 className="shrink-0 font-bold">Notes internes</h2>
-                <span className="truncate rounded-md bg-info/15 px-2 py-0.5 font-mono text-sm font-bold text-info">{notesColis.tracking}</span>
-              </div>
-              <button onClick={() => { setNotesColis(null); void refresh(); }} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="max-h-[70vh] overflow-y-auto p-5"><ColisCommentaires colisId={notesColis.id} /></div>
-          </div>
-        </div>
-      )}
-
-      <SiteFooter />
     </div>
   );
 }

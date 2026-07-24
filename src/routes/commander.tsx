@@ -89,8 +89,9 @@ function CommanderPage() {
 
   useEffect(() => {
     if (!canEditForm || !editColis) return;
+    // Priorité à destinataire_commune (précise) ; repli sur destinataire_wilaya pour les anciens colis
     const arriveeGuess =
-      COMMUNES.find((c) => normalizeCommune(c.name) === normalizeCommune(editColis.destinataire_wilaya || ""))?.name || "";
+      COMMUNES.find((c) => normalizeCommune(c.name) === normalizeCommune(editColis.destinataire_commune || editColis.destinataire_wilaya || ""))?.name || "";
     setForm((f) => ({
       ...f,
       destinataire_nom: editColis.destinataire_nom || "",
@@ -194,6 +195,7 @@ function CommanderPage() {
       destinataire_tel: parsed.data.destinataire_tel,
       destinataire_adresse: parsed.data.destinataire_adresse,
       destinataire_wilaya: parsed.data.destinataire_wilaya,
+      destinataire_commune: form.arrivee || null,
       destinataire_cp: parsed.data.destinataire_cp || null,
       description: parsed.data.description,
       depart: parsed.data.depart,

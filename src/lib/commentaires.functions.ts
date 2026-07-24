@@ -16,51 +16,82 @@ async function estInterne(supabase: any, userId: string) {
   return roles.some((r) => r !== "client");
 }
 
-// Tags autorisés
+async function chargerColis(colisId: string) {
+  const { data } = await supabaseAdmin.from("colis").select("id, client_id").eq("id", colisId).single();
+  return data;
+}
+
+// Vérifie l'accès : le staff a accès à tout, un client seulement à SES colis
+async function verifierAcces(supabase: any, userId: string, colisId: string) {
+  const col = await chargerColis(colisId);
+  if (!col) throw new Error("Colis introuvable");
+  const interne = await estInterne(supabase, userId);
+  if (!interne && col.client_id !== userId) throw new Error("Forbidden");
+  return { interne, col };
+}
+
 const TAGS = ["reclamation", "demande_client", "pb_operations", "remarque_commerciale", "autre"] as const;
 
 // ─────────────────────────────────────────────────────────
 // Ajouter un commentaire (ou une réponse)
+// visible_client=false → Notes internes (staff uniquement, comme avant)
+// visible_client=true  → Commentaires partagés (client + staff)
 // ─────────────────────────────────────────────────────────
 const AddInput = z.object({
   colis_id: z.string().uuid(),
   contenu: z.string().trim().min(1).max(2000),
   tag: z.enum(TAGS).optional(),
   parent_id: z.string().uuid().optional(),
+  visible_client: z.boolean().optional().default(false),
 });
 
 export const ajouterCommentaire = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => AddInput.parse(data))
   .handler(async ({ data, context }) => {
-    if (!(await estInterne(context.supabase, context.userId))) throw new Error("Forbidden");
+    const { interne } = await verifierAcces(context.supabase, context.userId, data.colis_id);
+    // Un client ne peut écrire QUE dans les commentaires partagés, jamais en notes internes
+    if (!interne && !data.visible_client) throw new Error("Forbidden");
+
     const { data: prof } = await supabaseAdmin
-      .from("profiles").select("nom").eq("id", context.userId).single();
+      .from("profiles").select("nom, nom_boutique").eq("id", context.userId).single();
+    const auteur_nom = interne ? (prof?.nom ?? null) : (prof?.nom_boutique || prof?.nom || "Client");
 
     const { data: row, error } = await supabaseAdmin.from("colis_commentaires").insert({
       colis_id: data.colis_id,
       auteur_id: context.userId,
-      auteur_nom: prof?.nom ?? null,
+      auteur_nom,
       contenu: data.contenu,
       tag: data.tag ?? null,
       parent_id: data.parent_id ?? null,
+      visible_client: data.visible_client,
     }).select().single();
     if (error) throw new Error(error.message);
     return { ok: true, commentaire: row };
   });
 
 // ─────────────────────────────────────────────────────────
-// Lister les commentaires d'un colis (fil complet)
+// Lister les commentaires d'un colis, filtrés par visibilité
 // ─────────────────────────────────────────────────────────
+const ListInput = z.object({
+  colis_id: z.string().uuid(),
+  visible_client: z.boolean().optional().default(false),
+});
+
 export const listCommentaires = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) => z.object({ colis_id: z.string().uuid() }).parse(data))
+  .inputValidator((data) => ListInput.parse(data))
   .handler(async ({ data, context }) => {
-    if (!(await estInterne(context.supabase, context.userId))) throw new Error("Forbidden");
+    const { interne, col } = await verifierAcces(context.supabase, context.userId, data.colis_id);
+    // Les notes internes (visible_client=false) restent strictement staff
+    if (!data.visible_client && !interne) throw new Error("Forbidden");
+
     const { data: rows } = await supabaseAdmin
       .from("colis_commentaires").select("*")
-      .eq("colis_id", data.colis_id).order("created_at", { ascending: true });
-    return { commentaires: rows ?? [], me: context.userId };
+      .eq("colis_id", data.colis_id)
+      .eq("visible_client", data.visible_client)
+      .order("created_at", { ascending: true });
+    return { commentaires: rows ?? [], me: context.userId, clientId: col?.client_id ?? null };
   });
 
 // ─────────────────────────────────────────────────────────
@@ -75,7 +106,6 @@ export const modifierCommentaire = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => EditInput.parse(data))
   .handler(async ({ data, context }) => {
-    // Vérifie que c'est bien l'auteur
     const { data: c } = await supabaseAdmin
       .from("colis_commentaires").select("auteur_id").eq("id", data.id).single();
     if (!c || c.auteur_id !== context.userId) throw new Error("Forbidden");
