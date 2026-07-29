@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Trophy, TrendingUp, TrendingDown, ArrowUp, ArrowDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useI18n } from "@/hooks/use-i18n";
 
 function isToday(iso: string) {
   const d = new Date(iso), n = new Date();
@@ -13,6 +14,7 @@ function isYesterday(iso: string) {
 }
 
 export function OpsStatsPanel({ colis, livreurs }: { colis: any[]; livreurs: any[] }) {
+  const { t } = useI18n();
   const [historique, setHistorique] = useState<any[]>([]);
 
   useEffect(() => {
@@ -52,24 +54,24 @@ export function OpsStatsPanel({ colis, livreurs }: { colis: any[]; livreurs: any
   const echecsHier = historique.filter((h) => h.statut === "echec-livraison" && isYesterday(h.created_at)).length;
 
   const Trend = ({ delta }: { delta: number }) =>
-    delta === 0 ? <span className="text-muted-foreground">= hier</span> :
-    delta > 0 ? <span className="flex items-center gap-0.5 text-success"><ArrowUp className="h-3 w-3" />+{delta} vs hier</span> :
-    <span className="flex items-center gap-0.5 text-destructive"><ArrowDown className="h-3 w-3" />{delta} vs hier</span>;
+    delta === 0 ? <span className="text-muted-foreground">{t("ops.sameAsYesterday")}</span> :
+    delta > 0 ? <span className="flex items-center gap-0.5 text-success"><ArrowUp className="h-3 w-3" />+{delta} {t("ops.vsYesterday")}</span> :
+    <span className="flex items-center gap-0.5 text-destructive"><ArrowDown className="h-3 w-3" />{delta} {t("ops.vsYesterday")}</span>;
 
   return (
     <div className="mb-6 grid gap-3 sm:grid-cols-2">
       <div className="rounded-xl bg-secondary/50 p-4">
         <div className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          <Trophy className="h-3.5 w-3.5" /> Livreurs du jour
+          <Trophy className="h-3.5 w-3.5" /> {t("ops.driversToday")}
         </div>
         {classement.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucune livraison enregistrée aujourd'hui.</p>
+          <p className="text-sm text-muted-foreground">{t("ops.noneToday")}</p>
         ) : (
           <div className="space-y-1.5">
             {classement.map((l, i) => (
               <div key={l.nom + i} className="flex items-center justify-between text-sm">
                 <span><span className={i === 0 ? "font-bold text-warning" : "text-muted-foreground"}>{i + 1}.</span> {l.nom}</span>
-                <span className="font-semibold">{l.n} livré{l.n > 1 ? "s" : ""}</span>
+                <span className="font-semibold">{l.n} {t("ops.delivered")}</span>
               </div>
             ))}
           </div>
@@ -78,12 +80,12 @@ export function OpsStatsPanel({ colis, livreurs }: { colis: any[]; livreurs: any
 
       <div className="rounded-xl bg-secondary/50 p-4">
         <div className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          <TrendingUp className="h-3.5 w-3.5" /> Aujourd'hui vs hier
+          <TrendingUp className="h-3.5 w-3.5" /> {t("ops.todayVsYesterday")}
         </div>
         <div className="space-y-1.5 text-sm">
-          <div className="flex items-center justify-between"><span>Colis créés</span><span className="font-semibold">{creesAuj} <Trend delta={creesAuj - creesHier} /></span></div>
-          <div className="flex items-center justify-between"><span>Livrés</span><span className="font-semibold">{livresAuj} <Trend delta={livresAuj - livresHier} /></span></div>
-          <div className="flex items-center justify-between"><span>Échecs</span><span className="font-semibold">{echecsAuj} <Trend delta={echecsAuj - echecsHier} /></span></div>
+          <div className="flex items-center justify-between"><span>{t("ops.colisCreated")}</span><span className="font-semibold">{creesAuj} <Trend delta={creesAuj - creesHier} /></span></div>
+          <div className="flex items-center justify-between"><span>{t("ops.delivered.label")}</span><span className="font-semibold">{livresAuj} <Trend delta={livresAuj - livresHier} /></span></div>
+          <div className="flex items-center justify-between"><span>{t("ops.failed")}</span><span className="font-semibold">{echecsAuj} <Trend delta={echecsAuj - echecsHier} /></span></div>
         </div>
       </div>
     </div>

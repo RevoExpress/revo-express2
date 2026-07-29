@@ -116,7 +116,7 @@ function SuiviLivreursPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteNav />
-      <section className="container mx-auto flex-1 px-4 py-10">
+      <section className="container mx-auto flex-1 px-4 pb-24 pt-10">
         <ProPageHeader icon={RadioTower} title="Suivi des livreurs" subtitle="Position des livreurs en temps réel." />
 
         {tokenMissing ? (

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { Bordereau } from "@/components/bordereau";
+import { openBordereauSingle } from "@/components/print-bordereau-button";
 import { ColisCommentaires } from "@/components/colis-commentaires";
 import { STATUTS } from "@/lib/tarifs";
 
@@ -20,6 +21,7 @@ function ColisDetailsPage() {
   const { user, role } = useAuth();
   const [colis, setColis] = useState<any>(null);
   const [historique, setHistorique] = useState<any[]>([]);
+  const [auteurs, setAuteurs] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [showBordereau, setShowBordereau] = useState(false);
 
@@ -36,11 +38,20 @@ function ColisDetailsPage() {
       if (c) {
         const { data: h } = await supabase.from("colis_historique").select("*").eq("colis_id", c.id).order("created_at", { ascending: true });
         if (active) setHistorique(h ?? []);
+        const userIds = [...new Set((h ?? []).map((e: any) => e.user_id).filter(Boolean))];
+        if (isStaff && userIds.length > 0) {
+          const { data: profs } = await supabase.from("profiles").select("id, nom, email").in("id", userIds);
+          if (active && profs) {
+            const m: Record<string, string> = {};
+            profs.forEach((p: any) => { m[p.id] = p.nom || p.email || p.id; });
+            setAuteurs(m);
+          }
+        }
       }
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [tracking, user]);
+  }, [tracking, user, isStaff]);
 
   if (loading) {
     return (
@@ -89,7 +100,7 @@ function ColisDetailsPage() {
             <Button variant="ghost" onClick={() => setShowBordereau(false)} className="gap-2">
               <ArrowLeft className="h-4 w-4" /> Retour aux détails
             </Button>
-            <Button onClick={() => window.print()} className="gap-2 bg-gradient-primary shadow-glow">
+            <Button onClick={() => openBordereauSingle(colis.tracking)} className="gap-2 bg-gradient-primary shadow-glow">
               <Printer className="h-4 w-4" /> Imprimer
             </Button>
           </div>
@@ -103,7 +114,7 @@ function ColisDetailsPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteNav />
-      <section className="container mx-auto flex-1 px-4 py-10">
+      <section className="container mx-auto flex-1 px-4 pb-24 pt-10">
         <Link to="/mes-colis" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Mes colis
         </Link>
@@ -164,14 +175,26 @@ function ColisDetailsPage() {
                 <ol className="relative ml-3 space-y-4 border-l border-border pl-6">
                   {historique.map((h) => {
                     const hs = STATUTS.find((s) => s.key === h.statut);
+                    const hsAncien = h.ancien_statut ? STATUTS.find((s) => s.key === h.ancien_statut) : null;
+                    const auteur = h.user_id ? auteurs[h.user_id] : null;
                     return (
                       <li key={h.id} className="relative">
                         <span className="absolute -left-[31px] mt-1.5 flex h-3 w-3 items-center justify-center rounded-full bg-primary ring-4 ring-background" />
-                        <div className="text-sm font-bold">{hs?.label ?? h.statut}</div>
+                        <div className="text-sm font-bold">
+                          {hsAncien ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="font-normal text-muted-foreground">{hsAncien.label}</span>
+                              <ArrowLeft className="h-3 w-3 rotate-180 text-muted-foreground rtl:rotate-0" />
+                              {hs?.label ?? h.statut}
+                            </span>
+                          ) : (hs?.label ?? h.statut)}
+                        </div>
                         {h.description && <div className="text-xs text-muted-foreground">{h.description}</div>}
+                        {h.motif && <div className="text-xs font-medium text-foreground/80">{h.motif}</div>}
                         <div className="text-xs text-muted-foreground">
                           {new Date(h.created_at).toLocaleString("fr-FR")}
                           {h.lieu ? ` • ${h.lieu}` : ""}
+                          {isStaff && auteur ? ` • par ${auteur}` : ""}
                         </div>
                       </li>
                     );
@@ -190,6 +213,9 @@ function ColisDetailsPage() {
               <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-muted-foreground">Récapitulatif</h3>
               <Row label="Prix du colis (COD)" value={`${Number(colis.prix_colis ?? 0)} DA`} />
               <Row label="Frais de livraison" value={`${Number(colis.prix)} DA`} />
+              {Number(colis.frais_surpoids ?? 0) > 0 && (
+                <Row label={`Dont surpoids (${colis.poids_kg ?? "?"} kg)`} value={`${Number(colis.frais_surpoids)} DA`} />
+              )}
               <div className="my-3 h-px bg-border" />
               <div className="flex items-baseline justify-between">
                 <span className="text-sm font-bold">Total à encaisser</span>

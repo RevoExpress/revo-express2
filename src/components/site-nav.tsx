@@ -1,12 +1,13 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Menu, X, LogOut, User as UserIcon, Download, ArrowRight, Plus, Package, Undo2, Search, Inbox, Loader2, Wallet } from "lucide-react";
+import { Menu, X, LogOut, User as UserIcon, Download, ArrowRight, Plus, Package, Undo2, Search, Inbox, Loader2, Wallet, Truck, LayoutDashboard } from "lucide-react";
 import { useAuth, homeForRole } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { A11yToggle } from "@/components/a11y-toggle";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { STATUTS } from "@/lib/tarifs";
@@ -93,7 +94,11 @@ export function SiteNav() {
     setSearchError(false);
     const safe = q.replace(/[,()]/g, " ").trim();
     const pattern = `%${safe}%`;
-    const { data, error } = await supabase
+
+    const isStaff = role && role !== "client";
+    const canCommercial = role === "admin" || role === "directeur_commercial" || role === "admin_commercial" || role === "commercial";
+
+    const colisP = supabase
       .from("colis")
       .select("id, tracking, type_colis, statut, destinataire_nom, destinataire_tel, destinataire_wilaya, date_creation")
       .or(
@@ -108,14 +113,33 @@ export function SiteNav() {
         ].join(","),
       )
       .order("date_creation", { ascending: false })
-      .limit(10);
+      .limit(8);
+
+    const clientsP = isStaff
+      ? supabase.from("profiles").select("id, nom, nom_boutique, telephone, email")
+          .or([`nom.ilike.${pattern}`, `nom_boutique.ilike.${pattern}`, `telephone.ilike.${pattern}`, `email.ilike.${pattern}`].join(","))
+          .limit(5)
+      : Promise.resolve({ data: [], error: null });
+
+    const prospectsP = canCommercial
+      ? supabase.from("prospects").select("id, nom_boutique, contact_nom, telephone, etape")
+          .or([`nom_boutique.ilike.${pattern}`, `contact_nom.ilike.${pattern}`, `telephone.ilike.${pattern}`].join(","))
+          .limit(5)
+      : Promise.resolve({ data: [], error: null });
+
+    const [colisRes, clientsRes, prospectsRes] = await Promise.all([colisP, clientsP, prospectsP]);
     setSearchBusy(false);
 
-    if (error) {
+    if (colisRes.error) {
       setSearchError(true);
       return;
     }
-    setResults(data ?? []);
+    const merged = [
+      ...(colisRes.data ?? []).map((r: any) => ({ ...r, _kind: "colis" as const })),
+      ...((clientsRes as any).data ?? []).map((r: any) => ({ ...r, _kind: "client" as const })),
+      ...((prospectsRes as any).data ?? []).map((r: any) => ({ ...r, _kind: "prospect" as const })),
+    ];
+    setResults(merged);
   }
 
   function statutLabel(key: string) {
@@ -130,7 +154,8 @@ export function SiteNav() {
     { to: "/#faq", label: t("nav.faq"), isAnchor: true },
     { to: "/suivi", label: t("nav.suivi") },
   ];
-  if (user) navItems.push({ to: "/mes-colis", label: t("nav.dashboard") });
+  if (user) navItems.push({ to: "/mes-colis", label: t("nav.quick.mycolis") });
+  if (user) navItems.push({ to: "/dashboard", label: t("nav.dashboard") });
 
   if (role === "admin") {
     navItems.push({ to: "/comptes", label: "Gestion des comptes" });
@@ -139,8 +164,18 @@ export function SiteNav() {
   if (role === "admin" || role === "admin_operations") {
     navItems.push({ to: "/finance", label: "Finance" });
   }
-  if (role === "admin" || role === "admin_commercial" || role === "commercial") {
+  if (role === "admin" || role === "admin_operations") {
+    navItems.push({ to: "/ramassages", label: "Ramassages" });
+  }
+  if (role === "admin" || role === "admin_commercial" || role === "commercial" || role === "directeur_commercial") {
     navItems.push({ to: "/prospection", label: "Prospection" });
+    navItems.push({ to: "/calendrier", label: "Calendrier" });
+  }
+  if (role === "admin" || role === "admin_commercial" || role === "commercial" || role === "directeur_commercial" || role === "admin_operations" || role === "admin_service_client") {
+    navItems.push({ to: "/carte-clients", label: "Carte des clients" });
+  }
+  if (role && role !== "client") {
+    navItems.push({ to: "/historique", label: "Historique" });
   }
   if (!role || role === "client") {
     navItems.push({ to: "/mon-paiement", label: "Mon paiement" });
@@ -182,14 +217,15 @@ export function SiteNav() {
             <button
               type="button"
               onClick={() => { setSearchError(false); setResults(null); setSearchOpen(true); }}
-              aria-label="Rechercher un colis"
-              title="Rechercher un colis"
+              aria-label="Rechercher"
+              title="Rechercher"
               className={iconBtn}
             >
               <Search className="h-5 w-5" />
             </button>
 
             <div className="hidden md:block"><ThemeToggle /></div>
+            <div className="hidden md:block"><A11yToggle /></div>
             <div className="hidden md:block"><LangSwitcher /></div>
 
             {canInstall && (
@@ -227,6 +263,12 @@ export function SiteNav() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
+                    <Link to="/dashboard" className="flex w-full cursor-pointer items-center gap-2">
+                      <LayoutDashboard className="h-4 w-4 text-primary" />
+                      <span className="font-semibold">{t("nav.dashboard")}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
                     <Link to="/mes-retours" className="flex w-full cursor-pointer items-center gap-2">
                       <Undo2 className="h-4 w-4 text-destructive" />
                       <span className="font-semibold">{t("nav.quick.myreturns")}</span>
@@ -251,6 +293,14 @@ export function SiteNav() {
                       <Link to="/finance" className="flex w-full cursor-pointer items-center gap-2">
                         <Wallet className="h-4 w-4 text-primary" />
                         <span className="font-semibold">Finance</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {(role === "admin" || role === "admin_operations") && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/ramassages" className="flex w-full cursor-pointer items-center gap-2">
+                        <Truck className="h-4 w-4 text-primary" />
+                        <span className="font-semibold">Ramassages</span>
                       </Link>
                     </DropdownMenuItem>
                   )}
@@ -319,7 +369,7 @@ export function SiteNav() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-bold">Rechercher un colis</h2>
+              <h2 className="font-bold">Recherche</h2>
               <button
                 onClick={closeSearch}
                 aria-label="Fermer"
@@ -335,7 +385,7 @@ export function SiteNav() {
                   ref={searchInputRef}
                   value={searchValue}
                   onChange={(e) => { setSearchValue(e.target.value); if (searchError) setSearchError(false); }}
-                  placeholder={user ? "Tracking, nom, téléphone, adresse, produit…" : "REV-ABC123"}
+                  placeholder={user ? "Colis, client, téléphone, prospect…" : "REV-ABC123"}
                   autoComplete="off"
                   spellCheck={false}
                   className={`h-11 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm font-bold outline-none focus:border-primary ${user ? "" : "font-mono uppercase"}`}
@@ -361,28 +411,60 @@ export function SiteNav() {
               <div className="mt-3 max-h-[50vh] overflow-y-auto rounded-lg border border-border">
                 {results.length === 0 ? (
                   <div className="p-6 text-center text-sm text-muted-foreground">
-                    Aucun colis trouvé pour « {searchValue} ».
+                    Aucun résultat pour « {searchValue} ».
                   </div>
                 ) : (
-                  results.map((r) => (
-                    <button
-                      key={r.id}
-                      onClick={() => setHisto({ tracking: r.tracking, type_colis: r.type_colis })}
-                      className="flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-muted/40"
-                    >
-                      <span className="shrink-0 rounded-md bg-info/15 px-2 py-0.5 font-mono text-xs font-bold text-info">
-                        {r.tracking}
-                      </span>
-                      <TrackingBadge typeColis={r.type_colis} />
-                      <span className="min-w-0 flex-1 truncate text-sm">
-                        <span className="font-medium">{r.destinataire_nom}</span>
-                        <span className="text-muted-foreground"> — {r.destinataire_tel}</span>
-                      </span>
-                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
-                        {statutLabel(r.statut)}
-                      </span>
-                    </button>
-                  ))
+                  results.map((r) => {
+                    if (r._kind === "client") {
+                      return (
+                        <button
+                          key={`c-${r.id}`}
+                          onClick={() => { closeSearch(); navigate({ to: "/boutique/$id", params: { id: r.id } }); }}
+                          className="flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-muted/40"
+                        >
+                          <span className="shrink-0 rounded-md bg-primary/15 px-2 py-0.5 text-[11px] font-bold text-primary">Client</span>
+                          <span className="min-w-0 flex-1 truncate text-sm">
+                            <span className="font-medium">{r.nom_boutique || r.nom}</span>
+                            <span className="text-muted-foreground"> — {r.telephone || r.email}</span>
+                          </span>
+                        </button>
+                      );
+                    }
+                    if (r._kind === "prospect") {
+                      return (
+                        <button
+                          key={`p-${r.id}`}
+                          onClick={() => { closeSearch(); navigate({ to: "/prospection" }); }}
+                          className="flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-muted/40"
+                        >
+                          <span className="shrink-0 rounded-md bg-warning/15 px-2 py-0.5 text-[11px] font-bold text-warning">Prospect</span>
+                          <span className="min-w-0 flex-1 truncate text-sm">
+                            <span className="font-medium">{r.nom_boutique}</span>
+                            <span className="text-muted-foreground"> — {r.contact_nom || r.telephone}</span>
+                          </span>
+                        </button>
+                      );
+                    }
+                    return (
+                      <button
+                        key={`col-${r.id}`}
+                        onClick={() => setHisto({ tracking: r.tracking, type_colis: r.type_colis })}
+                        className="flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-muted/40"
+                      >
+                        <span className="shrink-0 rounded-md bg-info/15 px-2 py-0.5 font-mono text-xs font-bold text-info">
+                          {r.tracking}
+                        </span>
+                        <TrackingBadge typeColis={r.type_colis} />
+                        <span className="min-w-0 flex-1 truncate text-sm">
+                          <span className="font-medium">{r.destinataire_nom}</span>
+                          <span className="text-muted-foreground"> — {r.destinataire_tel}</span>
+                        </span>
+                        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
+                          {statutLabel(r.statut)}
+                        </span>
+                      </button>
+                    );
+                  })
                 )}
               </div>
             )}
@@ -456,9 +538,10 @@ export function SiteNav() {
                   {t("nav.install")}
                 </Button>
               )}
-              <div className="flex items-center justify-between gap-2 pt-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
                 <LangSwitcher />
                 <ThemeToggle />
+                <A11yToggle />
               </div>
               {user && (
                 <Button

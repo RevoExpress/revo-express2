@@ -8,6 +8,7 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { listCommandesApiEnAttente, validerCommandeApi } from "@/lib/api.functions";
 import { toast } from "sonner";
+import { confirmAction } from "@/components/confirm-dialog";
 
 export const Route = createFileRoute("/_authenticated/commandes-api")({
   head: () => ({ meta: [{ title: "Commandes web — REVO EXPRESS" }] }),
@@ -35,9 +36,12 @@ function CommandesApiPage() {
 
   async function traiter(cmd: any, accepter: boolean) {
     if (!accepter) {
-      const ok = window.confirm(
-        `Refuser la commande de ${cmd.destinataire_nom} ?\n\nElle sera marquée comme rejetée et aucun colis ne sera créé.`
-      );
+      const ok = await confirmAction({
+        title: `Refuser la commande de ${cmd.destinataire_nom} ?`,
+        description: "Elle sera marquée comme rejetée et aucun colis ne sera créé.",
+        confirmLabel: "Refuser",
+        destructive: true,
+      });
       if (!ok) return;
     }
     setBusyId(cmd.id);
@@ -60,7 +64,7 @@ function CommandesApiPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteNav />
-      <section className="container mx-auto flex-1 px-4 py-10">
+      <section className="container mx-auto flex-1 px-4 pb-24 pt-10">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="text-xs font-bold uppercase tracking-[0.25em] text-primary">Boutique connectée</div>

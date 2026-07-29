@@ -24,5 +24,5 @@ function PrintOnePage() {
   if (notFound) return <div style={{ padding: 40, textAlign: "center", fontFamily: "Arial" }}><h1>Colis introuvable</h1></div>;
   if (!id) return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><Loader2 style={{ width: 32, height: 32 }} className="animate-spin" /></div>;
 
-  return <Navigate to="/print-bordereaux" search={{ ids: id, format: "a4" } as any} replace />;
+  return <Navigate to="/print-bordereaux" search={{ ids: id, format: "a6" } as any} replace />;
 }

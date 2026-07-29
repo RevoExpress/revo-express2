@@ -9,6 +9,7 @@ import { COMMUNES } from "@/lib/tarifs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -164,7 +165,7 @@ function ProfilPage() {
     : "Client";
 
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
+    <div className="container mx-auto max-w-4xl px-4 pb-24 pt-8">
       <div className="mb-6 flex items-center gap-4">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
           <UserIcon className="h-7 w-7" />
@@ -248,17 +249,16 @@ function ProfilPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="wilaya">Commune (départ de vos colis)</Label>
-                  <select
-                    id="wilaya"
-                    value={form.wilaya}
-                    onChange={(e) => setForm({ ...form, wilaya: e.target.value })}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">— Choisir votre commune —</option>
-                    {COMMUNES.map((c) => (
-                      <option key={c.name} value={c.name}>{c.name}</option>
-                    ))}
-                  </select>
+                  <Select value={form.wilaya || undefined} onValueChange={(v) => setForm({ ...form, wilaya: v })}>
+                    <SelectTrigger id="wilaya" className="w-full text-sm">
+                      <SelectValue placeholder="— Choisir votre commune —" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COMMUNES.map((c) => (
+                        <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <p className="text-[11px] text-muted-foreground">
                     Utilisée comme commune de départ à chaque commande.
                   </p>

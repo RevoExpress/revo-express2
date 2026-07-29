@@ -81,7 +81,7 @@ function ImportPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteNav />
-      <section className="container mx-auto flex-1 px-4 py-10">
+      <section className="container mx-auto flex-1 px-4 pb-24 pt-10">
         <div className="mb-8">
           <div className="text-xs font-bold uppercase tracking-[0.25em] text-primary">Outils</div>
           <h1 className="mt-1 text-3xl font-black md:text-4xl">Import Excel</h1>

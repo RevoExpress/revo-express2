@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import {
   ajouterCommentaire, listCommentaires, modifierCommentaire, supprimerCommentaire,
 } from "@/lib/commentaires.functions";
+import { useI18n, Ltr } from "@/hooks/use-i18n";
 
-const TAGS: { value: string; label: string; cls: string }[] = [
-  { value: "reclamation",          label: "Réclamation",         cls: "bg-destructive/15 text-destructive" },
-  { value: "demande_client",       label: "Demande client",      cls: "bg-info/15 text-info" },
-  { value: "pb_operations",        label: "Pb opérations",       cls: "bg-warning/15 text-warning" },
-  { value: "remarque_commerciale", label: "Remarque commerciale",cls: "bg-primary/15 text-primary" },
-  { value: "autre",                label: "Autre",               cls: "bg-muted text-foreground" },
+const TAGS: { value: string; tKey: string; cls: string }[] = [
+  { value: "reclamation",          tKey: "cc.tag.reclamation",          cls: "bg-destructive/15 text-destructive" },
+  { value: "demande_client",       tKey: "cc.tag.demandeClient",        cls: "bg-info/15 text-info" },
+  { value: "pb_operations",        tKey: "cc.tag.pbOperations",         cls: "bg-warning/15 text-warning" },
+  { value: "remarque_commerciale", tKey: "cc.tag.remarqueCommerciale",  cls: "bg-primary/15 text-primary" },
+  { value: "autre",                tKey: "cc.tag.autre",                cls: "bg-muted text-foreground" },
 ];
 const tagInfo = (v?: string | null) => TAGS.find((t) => t.value === v);
 
@@ -25,6 +26,7 @@ type Commentaire = {
 // visibleClient=false (défaut) → Notes internes, comme avant, staff uniquement
 // visibleClient=true → Commentaires partagés, visibles et modifiables par le client aussi
 export function ColisCommentaires({ colisId, visibleClient = false }: { colisId: string; visibleClient?: boolean }) {
+  const { t } = useI18n();
   const listFn = useServerFn(listCommentaires);
   const addFn = useServerFn(ajouterCommentaire);
   const editFn = useServerFn(modifierCommentaire);
@@ -87,10 +89,10 @@ export function ColisCommentaires({ colisId, visibleClient = false }: { colisId:
   const reponses = (pid: string) => items.filter((c) => c.parent_id === pid);
 
   if (loading) {
-    return <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Chargement…</div>;
+    return <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}</div>;
   }
 
-  const titre = visibleClient ? "Commentaires" : "Notes internes";
+  const titre = visibleClient ? t("chm.tab.comments") : t("cc.internalNotes");
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
@@ -111,7 +113,7 @@ export function ColisCommentaires({ colisId, visibleClient = false }: { colisId:
               onSaveEdit={() => saveEdit(c.id)}
             />
             {reponses(c.id).length > 0 && (
-              <div className="mt-2 space-y-2 border-l-2 border-border pl-3">
+              <div className="mt-2 space-y-2 border-s-2 border-border ps-3">
                 {reponses(c.id).map((r) => (
                   <CommentBody
                     key={r.id} c={r} me={me} clientId={clientId} visibleClient={visibleClient}
@@ -128,7 +130,7 @@ export function ColisCommentaires({ colisId, visibleClient = false }: { colisId:
         ))}
         {!racines.length && (
           <p className="py-4 text-center text-sm text-muted-foreground">
-            {visibleClient ? "Aucun commentaire pour ce colis." : "Aucune note interne pour ce colis."}
+            {visibleClient ? t("cc.noComments") : t("cc.noNotes")}
           </p>
         )}
       </div>
@@ -136,14 +138,14 @@ export function ColisCommentaires({ colisId, visibleClient = false }: { colisId:
       <div className="mt-4 rounded-xl border border-border bg-background p-3">
         {replyTo && (
           <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-            <span>↳ En réponse à un commentaire</span>
-            <button onClick={() => setReplyTo(null)} className="text-primary hover:underline">Annuler</button>
+            <span>{t("cc.replyingTo")}</span>
+            <button onClick={() => setReplyTo(null)} className="text-primary hover:underline">{t("common.cancel")}</button>
           </div>
         )}
         <textarea
           value={contenu}
           onChange={(e) => setContenu(e.target.value)}
-          placeholder={visibleClient ? "Écrire un commentaire…" : "Écrire une note interne…"}
+          placeholder={visibleClient ? t("cc.writeComment") : t("cc.writeNote")}
           rows={2}
           className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
@@ -152,24 +154,24 @@ export function ColisCommentaires({ colisId, visibleClient = false }: { colisId:
           {!visibleClient ? (
             <div className="flex flex-wrap items-center gap-1">
               <TagIcon className="h-3.5 w-3.5 text-muted-foreground" />
-              {TAGS.map((t) => (
+              {TAGS.map((tg) => (
                 <button
-                  key={t.value}
+                  key={tg.value}
                   type="button"
-                  onClick={() => setTag(tag === t.value ? "" : t.value)}
+                  onClick={() => setTag(tag === tg.value ? "" : tg.value)}
                   className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition ${
-                    tag === t.value ? t.cls + " ring-1 ring-current" : "bg-muted text-muted-foreground hover:bg-muted/70"
+                    tag === tg.value ? tg.cls + " ring-1 ring-current" : "bg-muted text-muted-foreground hover:bg-muted/70"
                   }`}
                 >
-                  {t.label}
+                  {t(tg.tKey as any)}
                 </button>
               ))}
             </div>
           ) : <span />}
           <Button size="sm" onClick={send} disabled={sending || !contenu.trim()}
             className="bg-gradient-primary text-white hover:opacity-95">
-            {sending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
-            Envoyer
+            {sending ? <Loader2 className="me-1 h-4 w-4 animate-spin" /> : <Send className="me-1 h-4 w-4" />}
+            {t("common.send")}
           </Button>
         </div>
       </div>
@@ -184,7 +186,8 @@ function CommentBody({
   onReply?: () => void; onEdit: () => void; onDelete: () => void;
   editing: boolean; editText: string; setEditText: (s: string) => void; onSaveEdit: () => void;
 }) {
-  const t = tagInfo(c.tag);
+  const { t } = useI18n();
+  const tag = tagInfo(c.tag);
   const mine = me && c.auteur_id === me;
   const estLeClient = visibleClient && clientId && c.auteur_id === clientId;
   const date = new Date(c.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -199,24 +202,24 @@ function CommentBody({
           <span className="text-sm font-semibold">{c.auteur_nom ?? "—"}</span>
           {visibleClient && (
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${estLeClient ? "bg-info/15 text-info" : "bg-primary/15 text-primary"}`}>
-              {estLeClient ? "Client" : "Équipe Revo"}
+              {estLeClient ? t("cc.client") : t("cc.team")}
             </span>
           )}
-          {t && <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${t.cls}`}>{t.label}</span>}
-          <span className="text-[11px] text-muted-foreground">{date}</span>
+          {tag && <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${tag.cls}`}>{t(tag.tKey as any)}</span>}
+          <Ltr className="text-[11px] text-muted-foreground">{date}</Ltr>
         </div>
         <div className="flex items-center gap-1">
           {onReply && (
-            <button onClick={onReply} title="Répondre" className="text-muted-foreground hover:text-primary">
+            <button onClick={onReply} title={t("cc.reply")} className="text-muted-foreground hover:text-primary">
               <Reply className="h-3.5 w-3.5" />
             </button>
           )}
           {mine && !editing && (
             <>
-              <button onClick={onEdit} title="Modifier" className="text-muted-foreground hover:text-primary">
+              <button onClick={onEdit} title={t("common.edit")} className="text-muted-foreground hover:text-primary">
                 <Pencil className="h-3.5 w-3.5" />
               </button>
-              <button onClick={onDelete} title="Supprimer" className="text-muted-foreground hover:text-destructive">
+              <button onClick={onDelete} title={t("common.delete")} className="text-muted-foreground hover:text-destructive">
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             </>
@@ -228,7 +231,7 @@ function CommentBody({
           <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={2}
             className="w-full resize-none rounded-md border border-input bg-background px-2 py-1 text-sm" />
           <div className="mt-1 flex gap-2">
-            <Button size="sm" onClick={onSaveEdit}>Enregistrer</Button>
+            <Button size="sm" onClick={onSaveEdit}>{t("common.save")}</Button>
           </div>
         </div>
       ) : (

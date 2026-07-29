@@ -1,9 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Search, PackageSearch, History, ArrowRight } from "lucide-react";
+import { Search, PackageSearch, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
+import { STATUTS } from "@/lib/tarifs";
+import { getPublicTracking } from "@/lib/tracking.functions";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/suivi")({
   validateSearch: (s: Record<string, unknown>) => ({ t: (s.t as string) || "" }),
@@ -16,16 +21,11 @@ export const Route = createFileRoute("/suivi")({
   component: SuiviPage,
 });
 
-// Nettoie n'importe quelle saisie et en extrait un tracking valide.
-// Accepte : "REV-ABC123", "rev-abc123", "ABC123", un lien collé entier,
-// des espaces, et les retours ECH-/SPL-. Renvoie null si incompréhensible.
 function normalizeTracking(input: string): string | null {
   const raw = input.trim().toUpperCase().replace(/\s+/g, "");
   if (!raw) return null;
-  // Cas 1 : un tracking complet quelque part dans la saisie (même dans une URL)
   const m = raw.match(/(REV|ECH|SPL)-?([A-Z0-9]{4,10})/);
   if (m) return `${m[1]}-${m[2]}`;
-  // Cas 2 : juste le code sans préfixe (ex. "ABC123")
   const code = raw.match(/^([A-Z0-9]{4,10})$/);
   if (code) return `REV-${code[1]}`;
   return null;
@@ -53,6 +53,7 @@ function pushRecent(code: string) {
 function SuiviPage() {
   const { t } = Route.useSearch();
   const navigate = useNavigate();
+  const lookup = useServerFn(getPublicTracking);
   const [tracking, setTracking] = useState(t || "");
   const [error, setError] = useState<string | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
@@ -61,7 +62,13 @@ function SuiviPage() {
     setRecent(getRecent());
   }, []);
 
-  // Redirection auto si ?t= est présent dans l'URL
+  const dernier = recent[0];
+  const { data: dernierData } = useQuery({
+    queryKey: ["public-track-preview", dernier],
+    queryFn: () => lookup({ data: { code: dernier! } }),
+    enabled: !!dernier,
+  });
+
   useEffect(() => {
     if (t) {
       const clean = normalizeTracking(t);
@@ -88,70 +95,94 @@ function SuiviPage() {
     go(clean);
   }
 
+  const dernierStatut = dernierData && !("notFound" in dernierData)
+    ? STATUTS.find((s) => s.key === dernierData.colis.statut)
+    : null;
+
+  const colorMap: Record<string, string> = {
+    warning: "bg-warning/15 text-warning",
+    info: "bg-info/15 text-info",
+    success: "bg-success/15 text-success",
+    destructive: "bg-destructive/15 text-destructive",
+  };
+
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-[#FAFAFA]">
       <SiteNav />
-      <section className="bg-gradient-hero py-16 text-white md:py-24">
-        <div className="container mx-auto max-w-2xl px-4 text-center">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
-            <PackageSearch className="h-8 w-8" />
-          </div>
-          <h1 className="text-4xl font-black md:text-5xl">Où est mon colis&nbsp;?</h1>
-          <p className="mt-3 text-white/80">
-            Entrez votre numéro de suivi pour voir l'avancement en temps réel.
-          </p>
-
-          <form onSubmit={onSubmit} className="mt-8">
-            <div className="flex flex-col gap-2 rounded-2xl bg-white p-2 shadow-xl sm:flex-row">
-              <div className="relative flex-1">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  value={tracking}
-                  onChange={(e) => { setTracking(e.target.value); if (error) setError(null); }}
-                  placeholder="REV-ABC123"
-                  autoFocus
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                  spellCheck={false}
-                  className="h-14 w-full rounded-xl bg-transparent pl-12 pr-4 font-mono text-lg font-bold uppercase tracking-wider text-foreground outline-none placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-muted-foreground"
-                />
-              </div>
-              <Button type="submit" size="lg" className="h-14 gap-2 rounded-xl bg-gradient-primary px-8 text-base font-bold shadow-glow">
-                Suivre <ArrowRight className="h-5 w-5" />
-              </Button>
+      <section className="flex-1 pb-24 pt-16 md:pt-24">
+        <div className="container mx-auto max-w-md px-4">
+          <div className="rounded-2xl bg-card border border-border p-8 text-center shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.06)] md:p-10">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
+              <PackageSearch className="h-6 w-6 text-foreground" />
             </div>
-            {error && (
-              <p className="mt-3 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white ring-1 ring-white/20">
-                {error}
-              </p>
-            )}
-          </form>
+            <h1 className="mt-5 text-2xl font-semibold tracking-tight md:text-3xl">Où est mon colis&nbsp;?</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Entrez votre numéro de suivi pour voir l'avancement en temps réel.
+            </p>
 
-          {recent.length > 0 && (
-            <div className="mt-8">
-              <div className="flex items-center justify-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/60">
-                <History className="h-3.5 w-3.5" /> Recherches récentes
+            <form onSubmit={onSubmit} className="mt-7">
+              <div className="flex items-center gap-1.5 rounded-xl border border-border p-1.5">
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={tracking}
+                    onChange={(e) => { setTracking(e.target.value); if (error) setError(null); }}
+                    placeholder="REV-ABC123"
+                    autoFocus
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    className="h-11 w-full rounded-lg bg-transparent pl-9 pr-3 font-mono text-sm font-semibold uppercase tracking-wide text-foreground outline-none placeholder:font-sans placeholder:text-sm placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-muted-foreground"
+                  />
+                </div>
+                <Button type="submit" className="h-11 gap-1.5 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+                  Suivre <ArrowRight className="h-4 w-4" />
+                </Button>
               </div>
-              <div className="mt-3 flex flex-wrap justify-center gap-2">
-                {recent.map((code) => (
+              {error && (
+                <p className="mt-3 rounded-lg bg-destructive/5 px-3 py-2 text-xs font-medium text-destructive">
+                  {error}
+                </p>
+              )}
+            </form>
+
+            {dernier && (
+              <button
+                onClick={() => go(dernier)}
+                className="mt-5 flex w-full items-center justify-between rounded-xl bg-muted p-4 text-left transition-colors hover:bg-muted/70"
+              >
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Dernier suivi</div>
+                  <div className="mt-0.5 font-mono text-sm font-semibold">{dernier}</div>
+                </div>
+                {dernierStatut && (
+                  <span className={cn("shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold", colorMap[dernierStatut.color])}>
+                    {dernierStatut.label}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {recent.length > 1 && (
+              <div className="mt-5 flex flex-wrap justify-center gap-1.5">
+                {recent.slice(1).map((code) => (
                   <button
                     key={code}
                     onClick={() => go(code)}
-                    className="rounded-full bg-white/10 px-4 py-1.5 font-mono text-sm font-bold ring-1 ring-white/20 transition-colors hover:bg-white/20"
+                    className="rounded-full bg-muted px-3 py-1 font-mono text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
                   >
                     {code}
                   </button>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          <p className="mt-8 text-xs text-white/60">
+          <p className="mt-6 text-center text-xs text-muted-foreground">
             Accès public — aucune connexion requise. Le numéro figure sur votre bordereau ou le message de l'expéditeur.
           </p>
         </div>
       </section>
-      <div className="flex-1" />
       <SiteFooter />
     </div>
   );

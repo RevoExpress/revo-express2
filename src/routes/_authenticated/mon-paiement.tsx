@@ -5,6 +5,7 @@ import { Loader2, Wallet, Package, Printer, Info } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { getMonSolde, getMesColisEnAttente, getMesReversements } from "@/lib/finance.functions";
 
 export const Route = createFileRoute("/_authenticated/mon-paiement")({
@@ -37,7 +38,7 @@ function MonPaiementPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteNav />
-      <section className="container mx-auto flex-1 px-4 py-10">
+      <section className="container mx-auto flex-1 px-4 pb-24 pt-10">
         <div className="mb-6">
           <div className="text-xs font-bold uppercase tracking-[0.25em] text-primary">Finance</div>
           <h1 className="mt-1 text-3xl font-black md:text-4xl">Mon paiement</h1>
@@ -47,7 +48,7 @@ function MonPaiementPage() {
         {/* Solde en gros */}
         <div className="mb-6 rounded-2xl bg-gradient-navy p-8 text-center text-white shadow-card">
           <div className="flex items-center justify-center gap-2 text-sm text-white/70">
-            <Wallet className="h-4 w-4" /> Revo vous doit actuellement
+            <Wallet className="h-4 w-4" /> Mon solde
           </div>
           <div className="mt-2 text-5xl font-black text-primary">
             {(solde?.montant_du ?? 0).toLocaleString("fr-FR")} <span className="text-2xl font-medium text-white/70">DA</span>
@@ -63,25 +64,27 @@ function MonPaiementPage() {
           {colisEnAttente.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground"><Package className="mx-auto mb-2 h-8 w-8" />Aucun colis en attente</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/30 text-xs uppercase text-muted-foreground">
-                  <tr><th className="px-4 py-2 text-left">Tracking</th><th className="px-4 py-2 text-left">Destinataire</th><th className="px-4 py-2 text-right">Montant</th></tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {colisEnAttente.map((c) => {
-                    const montant = c.frais_payes_par_expediteur ? Number(c.prix_colis) - Number(c.prix) : Number(c.prix_colis);
-                    return (
-                      <tr key={c.id}>
-                        <td className="px-4 py-2 font-mono text-xs">{c.tracking}</td>
-                        <td className="px-4 py-2">{c.destinataire_nom}</td>
-                        <td className="px-4 py-2 text-right font-bold">{montant.toLocaleString("fr-FR")} DA</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <Table className="text-sm">
+              <TableHeader className="bg-muted/30 text-xs uppercase text-muted-foreground">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="px-4 py-2">Tracking</TableHead>
+                  <TableHead className="px-4 py-2">Destinataire</TableHead>
+                  <TableHead className="px-4 py-2 text-end">Montant</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="[&_tr]:divide-border">
+                {colisEnAttente.map((c) => {
+                  const montant = c.frais_payes_par_expediteur ? Number(c.prix_colis) - Number(c.prix) : Number(c.prix_colis);
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell className="px-4 py-2 font-mono text-xs">{c.tracking}</TableCell>
+                      <TableCell className="px-4 py-2">{c.destinataire_nom}</TableCell>
+                      <TableCell className="px-4 py-2 text-end font-bold">{montant.toLocaleString("fr-FR")} DA</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           )}
         </div>
 
@@ -93,34 +96,32 @@ function MonPaiementPage() {
               <Info className="mx-auto mb-2 h-8 w-8" />Aucun reversement effectué pour le moment
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/30 text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-2 text-left">Référence</th>
-                    <th className="px-4 py-2 text-left">Date</th>
-                    <th className="px-4 py-2 text-right">Colis</th>
-                    <th className="px-4 py-2 text-right">Montant</th>
-                    <th className="px-4 py-2 text-right">Reçu</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {reversements.map((r) => (
-                    <tr key={r.id}>
-                      <td className="px-4 py-2 font-mono text-xs">{r.reference}</td>
-                      <td className="px-4 py-2 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("fr-FR")}</td>
-                      <td className="px-4 py-2 text-right">{r.nb_colis}</td>
-                      <td className="px-4 py-2 text-right font-bold">{Number(r.montant_total).toLocaleString("fr-FR")} DA</td>
-                      <td className="px-4 py-2 text-right">
-                        <Link to="/print-reversement/$id" params={{ id: r.id }} target="_blank">
-                          <Button size="sm" variant="outline" className="gap-1.5"><Printer className="h-3.5 w-3.5" /> Reçu</Button>
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table className="text-sm">
+              <TableHeader className="bg-muted/30 text-xs uppercase text-muted-foreground">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="px-4 py-2">Référence</TableHead>
+                  <TableHead className="px-4 py-2">Date</TableHead>
+                  <TableHead className="px-4 py-2 text-end">Colis</TableHead>
+                  <TableHead className="px-4 py-2 text-end">Montant</TableHead>
+                  <TableHead className="px-4 py-2 text-end">Reçu</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="[&_tr]:divide-border">
+                {reversements.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="px-4 py-2 font-mono text-xs">{r.reference}</TableCell>
+                    <TableCell className="px-4 py-2 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("fr-FR")}</TableCell>
+                    <TableCell className="px-4 py-2 text-end">{r.nb_colis}</TableCell>
+                    <TableCell className="px-4 py-2 text-end font-bold">{Number(r.montant_total).toLocaleString("fr-FR")} DA</TableCell>
+                    <TableCell className="px-4 py-2 text-end">
+                      <Link to="/print-reversement/$id" params={{ id: r.id }} target="_blank">
+                        <Button size="sm" variant="outline" className="gap-1.5"><Printer className="h-3.5 w-3.5" /> Reçu</Button>
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </div>
       </section>

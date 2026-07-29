@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Undo2, Loader2, Search, Eye, Download, Upload, XCircle, RefreshCw, AlertTriangle } from "lucide-react";
+import { Undo2, Loader2, Search, Download, Upload, XCircle, RefreshCw, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { exportColisToXLSX } from "@/lib/export-csv";
+import { TrackingActions } from "@/components/tracking-actions";
+import { useI18n, Ltr } from "@/hooks/use-i18n";
 
 export const Route = createFileRoute("/_authenticated/mes-retours")({
   head: () => ({ meta: [{ title: "Mes retours — REVO EXPRESS" }] }),
@@ -16,6 +18,7 @@ export const Route = createFileRoute("/_authenticated/mes-retours")({
 
 function MesRetoursPage() {
   const { user } = useAuth();
+  const { t, tf } = useI18n();
   const [colis, setColis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -71,13 +74,13 @@ function MesRetoursPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteNav />
-      <section className="container mx-auto flex-1 px-4 py-10">
+      <section className="container mx-auto flex-1 px-4 pb-24 pt-10">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="text-xs font-bold uppercase tracking-[0.25em] text-primary">Tableau de bord</div>
-            <h1 className="mt-1 text-3xl font-black md:text-4xl">Mes retours</h1>
+            <div className="text-xs font-bold uppercase tracking-[0.25em] text-primary">{t("mc.dashboard")}</div>
+            <h1 className="mt-1 text-3xl font-black md:text-4xl">{t("mr.title")}</h1>
             <p className="text-sm text-muted-foreground">
-              Colis non livrés et retournés à l'expéditeur.
+              {t("mr.subtitle")}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -89,35 +92,35 @@ function MesRetoursPage() {
                 exportColisToXLSX(filtered, `mes-retours-${new Date().toISOString().slice(0, 10)}.xlsx`)
               }
             >
-              <Download className="h-4 w-4" /> Exporter ({filtered.length})
+              <Download className="h-4 w-4" /> {tf("mr.exportCount", { n: filtered.length })}
             </Button>
             <Link to="/import">
               <Button variant="outline" className="gap-2">
-                <Upload className="h-4 w-4" /> Import Excel
+                <Upload className="h-4 w-4" /> {t("mr.importExcel")}
               </Button>
             </Link>
             <Link to="/mes-colis">
               <Button variant="ghost" className="gap-2">
-                <RefreshCw className="h-4 w-4" /> Voir tous mes colis
+                <RefreshCw className="h-4 w-4" /> {t("mr.viewAll")}
               </Button>
             </Link>
           </div>
         </div>
 
         <div className="mb-6 grid gap-3 sm:grid-cols-3">
-          <StatCard icon={Undo2} label="Total retours" value={stats.total} accent="destructive" />
-          <StatCard icon={AlertTriangle} label="Valeur non livrée" value={`${stats.valeur} DA`} accent="warning" />
-          <StatCard icon={XCircle} label="Frais perdus" value={`${stats.fraisPerdus} DA`} accent="destructive" />
+          <StatCard icon={Undo2} label={t("mr.stat.total")} value={stats.total} accent="destructive" />
+          <StatCard icon={AlertTriangle} label={t("mr.stat.valeur")} value={<Ltr>{stats.valeur} DA</Ltr>} accent="warning" />
+          <StatCard icon={XCircle} label={t("mr.stat.frais")} value={<Ltr>{stats.fraisPerdus} DA</Ltr>} accent="destructive" />
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Rechercher par tracking, nom, wilaya..."
+              placeholder={t("mr.search.ph")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="pl-9"
+              className="ps-9"
             />
           </div>
         </div>
@@ -130,22 +133,22 @@ function MesRetoursPage() {
           <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center">
             <Undo2 className="mx-auto h-12 w-12 text-muted-foreground" />
             <h2 className="mt-3 font-bold">
-              {colis.length === 0 ? "Aucun retour" : "Aucun résultat"}
+              {colis.length === 0 ? t("mr.empty.none") : t("mr.empty.noResult")}
             </h2>
             <p className="text-sm text-muted-foreground">
               {colis.length === 0
-                ? "Tous vos colis ont été livrés avec succès."
-                : "Modifiez votre recherche pour voir d'autres retours."}
+                ? t("mr.empty.allDelivered")
+                : t("mr.empty.changeSearch")}
             </p>
           </div>
         ) : (
           <div className="overflow-hidden rounded-xl border border-border bg-card">
             <div className="hidden grid-cols-[1.2fr_1.5fr_1fr_0.9fr_0.9fr_auto] gap-4 border-b border-border bg-muted/40 px-4 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground md:grid">
-              <div>Tracking</div>
-              <div>Destinataire</div>
-              <div>Wilaya</div>
-              <div>Valeur</div>
-              <div>Date</div>
+              <div>{t("mr.th.tracking")}</div>
+              <div>{t("mr.th.destinataire")}</div>
+              <div>{t("mr.th.wilaya")}</div>
+              <div>{t("mr.th.valeur")}</div>
+              <div>{t("mr.th.date")}</div>
               <div className="w-20" />
             </div>
             {filtered.map((c) => (
@@ -153,22 +156,18 @@ function MesRetoursPage() {
                 key={c.id}
                 className="grid grid-cols-1 gap-2 border-b border-border px-4 py-4 transition-colors last:border-b-0 hover:bg-muted/30 md:grid-cols-[1.2fr_1.5fr_1fr_0.9fr_0.9fr_auto] md:items-center md:gap-4"
               >
-                <div className="font-mono text-sm font-bold">{c.tracking}</div>
+                <Ltr className="block font-mono text-sm font-bold">{c.tracking}</Ltr>
                 <div className="text-sm">
                   <div className="font-medium">{c.destinataire_nom}</div>
-                  <div className="text-xs text-muted-foreground">{c.destinataire_tel}</div>
+                  <Ltr className="block text-xs text-muted-foreground">{c.destinataire_tel}</Ltr>
                 </div>
                 <div className="text-sm text-muted-foreground">{c.destinataire_wilaya ?? "—"}</div>
-                <div className="text-sm font-bold">{Number(c.prix_colis ?? 0)} DA</div>
-                <div className="text-xs text-muted-foreground">
+                <Ltr className="block text-sm font-bold">{Number(c.prix_colis ?? 0)} DA</Ltr>
+                <Ltr className="block text-xs text-muted-foreground">
                   {new Date(c.date_creation).toLocaleDateString("fr-FR")}
-                </div>
+                </Ltr>
                 <div className="flex justify-end">
-                  <Link to="/colis/$tracking" params={{ tracking: c.tracking }}>
-                    <Button size="sm" variant="outline" className="gap-1">
-                      <Eye className="h-3.5 w-3.5" /> Détails
-                    </Button>
-                  </Link>
+                  <TrackingActions colis={c} />
                 </div>
               </div>
             ))}
@@ -188,7 +187,7 @@ function StatCard({
 }: {
   icon: any;
   label: string;
-  value: string | number;
+  value: React.ReactNode;
   accent?: "warning" | "destructive" | "primary";
 }) {
   const accentMap: Record<string, string> = {

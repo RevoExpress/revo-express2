@@ -1,5 +1,5 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2 } from "lucide-react";
 import { getReversementDetail } from "@/lib/finance.functions";
@@ -19,15 +19,21 @@ function PrintReversementPage() {
     detailFn({ data: { id } }).then(setData).catch(() => setData(null));
   }, [id]);
 
+  const autoPrinted = useRef(false);
   useEffect(() => {
-    if (!data) return;
+    // Pas de cleanup qui annule le minuteur/listener : en dev, React ré-exécute cet effet
+    // une deuxième fois après son premier passage (montage->nettoyage->remontage), et un
+    // cleanup qui fait clearTimeout/removeEventListener annulait le déclenchement programmé
+    // par le premier passage — le verrou autoPrinted empêchait ensuite toute reprogrammation,
+    // donc l'impression ne partait jamais. Le verrou suffit à lui seul à garantir un seul appel.
+    if (!data || autoPrinted.current) return;
+    autoPrinted.current = true;
     const doPrint = () => window.print();
     if (document.readyState === "complete") {
-      const t = setTimeout(doPrint, 500);
-      return () => clearTimeout(t);
+      setTimeout(doPrint, 500);
+    } else {
+      window.addEventListener("load", doPrint, { once: true });
     }
-    window.addEventListener("load", doPrint);
-    return () => window.removeEventListener("load", doPrint);
   }, [data]);
 
   if (!data) return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -57,9 +63,18 @@ function PrintReversementPage() {
         </div>
 
         <h1 style={{ fontSize: 22, marginBottom: 4 }}>Reçu de reversement</h1>
-        <p style={{ fontSize: 13, color: "#555", marginBottom: 20 }}>
+        <p style={{ fontSize: 13, color: "#555", marginBottom: 4 }}>
           Référence : <b>{reversement.reference}</b> — {new Date(reversement.created_at).toLocaleString("fr-FR")}
         </p>
+        <p style={{ fontSize: 12, color: "#777", marginBottom: 20 }}>
+          Créé par : {reversement.cree_par_nom || "—"}
+        </p>
+
+        {reversement.annule_at && (
+          <div style={{ border: "2px solid #dc2626", color: "#dc2626", borderRadius: 8, padding: "10px 14px", fontWeight: 900, fontSize: 15, marginBottom: 20, textAlign: "center" }}>
+            ANNULÉ — le {new Date(reversement.annule_at).toLocaleString("fr-FR")}{reversement.annule_par_nom ? ` par ${reversement.annule_par_nom}` : ""}
+          </div>
+        )}
 
         <div style={{ background: "#f5f5f5", borderRadius: 8, padding: 16, marginBottom: 20 }}>
           <div style={{ fontSize: 12, color: "#555" }}>Boutique</div>

@@ -12,8 +12,10 @@ import appCss from "../styles.css?url";
 import { AuthProvider } from "@/hooks/use-auth";
 import { I18nProvider } from "@/hooks/use-i18n";
 import { ThemeProvider } from "@/hooks/use-theme";
+import { A11yProvider } from "@/hooks/use-a11y";
 import { Toaster } from "@/components/ui/sonner";
 import { WhatsappButton } from "@/components/whatsapp-button";
+import { ConfirmDialogHost } from "@/components/confirm-dialog";
 
 function NotFoundComponent() {
   return (
@@ -111,13 +113,16 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <I18nProvider>
-          <AuthProvider>
-            <Outlet />
-            <WhatsappButton />
-            <Toaster richColors position="top-right" />
-          </AuthProvider>
-        </I18nProvider>
+        <A11yProvider>
+          <I18nProvider>
+            <AuthProvider>
+              <Outlet />
+              <WhatsappButton />
+              <Toaster richColors position="top-right" />
+              <ConfirmDialogHost />
+            </AuthProvider>
+          </I18nProvider>
+        </A11yProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

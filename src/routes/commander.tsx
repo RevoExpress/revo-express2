@@ -2,11 +2,15 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Printer, Package, ArrowRight, User as UserIcon, Phone, MapPin, Pencil, AlertTriangle, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
+import { confirmAction } from "@/components/confirm-dialog";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
-import { COMMUNES, haversineKm, priceForDelivery, generateTracking, type DeliveryType } from "@/lib/tarifs";
+import {
+  COMMUNES, haversineKm, priceForDelivery, generateTracking, type DeliveryType,
+  poidsVolumetriqueKg, poidsFacturableKg, fraisSurpoids, POIDS_GRATUIT_KG, PRIX_PAR_KG_SUPPLEMENTAIRE,
+} from "@/lib/tarifs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { Bordereau } from "@/components/bordereau";
+import { openBordereauSingle } from "@/components/print-bordereau-button";
 
 const searchSchema = z.object({
   colis: z.string().optional(),
@@ -56,7 +61,15 @@ function CommanderPage() {
   const [typeLivraison, setTypeLivraison] = useState<DeliveryType>("standard");
   const [typeColis, setTypeColis] = useState<"REV" | "SPL" | "ECH">("REV");
   const [produitRetour, setProduitRetour] = useState("");
+  const [splitArt1Nom, setSplitArt1Nom] = useState("");
+  const [splitArt1Prix, setSplitArt1Prix] = useState("");
+  const [splitArt2Nom, setSplitArt2Nom] = useState("");
+  const [splitArt2Prix, setSplitArt2Prix] = useState("");
   const [valeurDeclaree, setValeurDeclaree] = useState("");
+  const [poidsKg, setPoidsKg] = useState("");
+  const [dimLongueur, setDimLongueur] = useState("");
+  const [dimLargeur, setDimLargeur] = useState("");
+  const [dimHauteur, setDimHauteur] = useState("");
   const [profilCharge, setProfilCharge] = useState(false);
   const [carnet, setCarnet] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -94,6 +107,10 @@ function CommanderPage() {
       COMMUNES.find((c) => normalizeCommune(c.name) === normalizeCommune(editColis.destinataire_commune || editColis.destinataire_wilaya || ""))?.name || "";
     setForm((f) => ({
       ...f,
+      expediteur_nom: editColis.expediteur_nom || "",
+      expediteur_tel: editColis.expediteur_tel || "",
+      expediteur_adresse: editColis.expediteur_adresse || "",
+      depart: editColis.depart || f.depart,
       destinataire_nom: editColis.destinataire_nom || "",
       destinataire_tel: editColis.destinataire_tel || "",
       destinataire_adresse: editColis.destinataire_adresse || "",
@@ -106,13 +123,24 @@ function CommanderPage() {
     setTypeLivraison(editColis.type_livraison === "urgent" ? "urgent" : "standard");
     setTypeColis(editColis.type_colis === "ECH" || editColis.type_colis === "SPL" ? editColis.type_colis : "REV");
     setProduitRetour(editColis.produit_retour || "");
+    setSplitArt1Nom(editColis.split_article1_nom || "");
+    setSplitArt1Prix(editColis.split_article1_prix != null ? String(editColis.split_article1_prix) : "");
+    setSplitArt2Nom(editColis.split_article2_nom || "");
+    setSplitArt2Prix(editColis.split_article2_prix != null ? String(editColis.split_article2_prix) : "");
     setValeurDeclaree(editColis.valeur_declaree != null ? String(editColis.valeur_declaree) : "");
+    setPoidsKg(editColis.poids_kg != null ? String(editColis.poids_kg) : "");
+    setDimLongueur(editColis.longueur_cm != null ? String(editColis.longueur_cm) : "");
+    setDimLargeur(editColis.largeur_cm != null ? String(editColis.largeur_cm) : "");
+    setDimHauteur(editColis.hauteur_cm != null ? String(editColis.hauteur_cm) : "");
   }, [canEditForm, editColis]);
 
   const prixEstZero = form.prix_colis.trim() !== "" && Number(form.prix_colis) === 0;
 
   useEffect(() => {
-    if (!user) return;
+    // En mode édition, l'expéditeur doit rester celui du colis d'origine (le client qui l'a
+    // créé), jamais celui de la personne qui modifie — sinon un membre du staff qui corrige
+    // un colis existant lui vole silencieusement son identité d'expéditeur au moment d'enregistrer.
+    if (!user || editColisId) return;
     supabase.from("profiles").select("*").eq("id", user.id).maybeSingle()
       .then(({ data }) => {
         setProfilCharge(true);
@@ -159,13 +187,26 @@ function CommanderPage() {
     profilCharge &&
     (!form.expediteur_nom || !form.expediteur_tel || !form.expediteur_adresse || !form.depart);
 
+  const surpoids = useMemo(() => {
+    const poidsReel = Number(poidsKg) || 0;
+    const volumetrique = poidsVolumetriqueKg(Number(dimLongueur) || 0, Number(dimLargeur) || 0, Number(dimHauteur) || 0);
+    const facturable = poidsFacturableKg(poidsReel, volumetrique);
+    return { poidsReel, volumetrique, facturable, frais: fraisSurpoids(facturable) };
+  }, [poidsKg, dimLongueur, dimLargeur, dimHauteur]);
+
   const estimation = useMemo(() => {
     const a = COMMUNES.find((c) => c.name === form.depart);
     const b = COMMUNES.find((c) => c.name === form.arrivee);
     if (!a || !b) return null;
     const km = haversineKm(a, b);
-    return { km: Math.max(1, Math.round(km * 10) / 10), prix: priceForDelivery(km, typeLivraison) };
-  }, [form.depart, form.arrivee, typeLivraison]);
+    const base = priceForDelivery(km, typeLivraison);
+    return {
+      km: Math.max(1, Math.round(km * 10) / 10),
+      base,
+      surpoids: surpoids.frais,
+      prix: base + surpoids.frais,
+    };
+  }, [form.depart, form.arrivee, typeLivraison, surpoids.frais]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -201,11 +242,23 @@ function CommanderPage() {
       depart: parsed.data.depart,
       distance_km: estimation.km,
       prix: estimation.prix,
+      frais_surpoids: surpoids.frais,
+      poids_kg: surpoids.poidsReel || null,
+      longueur_cm: Number(dimLongueur) || null,
+      largeur_cm: Number(dimLargeur) || null,
+      hauteur_cm: Number(dimHauteur) || null,
       prix_colis: parsed.data.prix_colis,
       valeur_declaree: parsed.data.prix_colis === 0 ? Number(valeurDeclaree) || null : null,
       type_livraison: typeLivraison,
       type_colis: typeColis,
-      produit_retour: typeColis !== "REV" ? produitRetour.trim() || null : null,
+      produit_retour:
+        typeColis === "ECH" ? produitRetour.trim() || null
+        : typeColis === "SPL" ? [splitArt1Nom.trim(), splitArt2Nom.trim()].filter(Boolean).join(" / ") || null
+        : null,
+      split_article1_nom: typeColis === "SPL" ? splitArt1Nom.trim() || null : null,
+      split_article1_prix: typeColis === "SPL" && splitArt1Prix.trim() !== "" ? Number(splitArt1Prix) : null,
+      split_article2_nom: typeColis === "SPL" ? splitArt2Nom.trim() || null : null,
+      split_article2_prix: typeColis === "SPL" && splitArt2Prix.trim() !== "" ? Number(splitArt2Prix) : null,
     };
 
     if (canEditForm && editColis) {
@@ -232,7 +285,12 @@ function CommanderPage() {
 
   async function handleDelete() {
     if (!editColis) return;
-    const ok = window.confirm(`Supprimer définitivement le colis ${editColis.tracking} ?\n\nCette action est irréversible.`);
+    const ok = await confirmAction({
+      title: `Supprimer le colis ${editColis.tracking} ?`,
+      description: "Cette action est irréversible.",
+      confirmLabel: "Supprimer",
+      destructive: true,
+    });
     if (!ok) return;
     setDeleting(true);
     const { error } = await supabase.from("colis").delete().eq("id", editColis.id);
@@ -310,7 +368,7 @@ function CommanderPage() {
           </div>
           <Bordereau colis={createdColis} />
           <div className="no-print mt-6 flex flex-wrap justify-center gap-3">
-            <Button onClick={() => window.print()} className="gap-2 bg-gradient-primary">
+            <Button onClick={() => openBordereauSingle(createdColis.tracking)} className="gap-2 bg-gradient-primary">
               <Printer className="h-4 w-4" /> {t("cmd.print")}
             </Button>
             <Link to="/suivi" search={{ t: createdColis.tracking } as any}>
@@ -338,7 +396,7 @@ function CommanderPage() {
         </div>
       </section>
 
-      <section className="py-12">
+      <section className="pb-24 pt-12">
         <form onSubmit={onSubmit} className="container mx-auto grid max-w-5xl gap-6 px-4 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
@@ -473,22 +531,56 @@ function CommanderPage() {
                     </button>
                   ))}
                 </div>
-                {typeColis !== "REV" && (
+                {typeColis === "ECH" && (
                   <div className="mt-3">
-                    <Label htmlFor="produit_retour">
-                      {typeColis === "ECH"
-                        ? "Produit à RÉCUPÉRER chez le client"
-                        : "Produit à RENVOYER au vendeur"}
-                    </Label>
+                    <Label htmlFor="produit_retour">Produit à RÉCUPÉRER chez le client</Label>
                     <Input
                       id="produit_retour"
                       value={produitRetour}
                       onChange={(e) => setProduitRetour(e.target.value)}
-                      placeholder={typeColis === "ECH"
-                        ? "Ex : Robe rouge taille M (l'ancien article)"
-                        : "Ex : 1 paire de chaussures (ce qui n'est pas gardé)"}
+                      placeholder="Ex : Robe rouge taille M (l'ancien article)"
                       className="mt-1"
                     />
+                  </div>
+                )}
+                {typeColis === "SPL" && (
+                  <div className="mt-3 space-y-3 rounded-lg border border-border bg-secondary/40 p-3">
+                    <div className="text-xs font-bold text-muted-foreground">
+                      2 articles envoyés — le client peut n'en accepter qu'un à la livraison. Le prix affiché
+                      sera la somme des deux ; il sera recalculé automatiquement selon ce qui est réellement livré.
+                    </div>
+                    <div className="grid grid-cols-[1fr_110px] gap-2">
+                      <Input
+                        placeholder="Article 1 — ex : Robe rouge taille M"
+                        value={splitArt1Nom}
+                        onChange={(e) => setSplitArt1Nom(e.target.value)}
+                      />
+                      <Input
+                        type="number" inputMode="numeric" min={0} placeholder="Prix DA"
+                        value={splitArt1Prix}
+                        onChange={(e) => {
+                          setSplitArt1Prix(e.target.value);
+                          const sum = (Number(e.target.value) || 0) + (Number(splitArt2Prix) || 0);
+                          setForm((f) => ({ ...f, prix_colis: String(sum) }));
+                        }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-[1fr_110px] gap-2">
+                      <Input
+                        placeholder="Article 2 — ex : Robe bleue taille L"
+                        value={splitArt2Nom}
+                        onChange={(e) => setSplitArt2Nom(e.target.value)}
+                      />
+                      <Input
+                        type="number" inputMode="numeric" min={0} placeholder="Prix DA"
+                        value={splitArt2Prix}
+                        onChange={(e) => {
+                          setSplitArt2Prix(e.target.value);
+                          const sum = (Number(splitArt1Prix) || 0) + (Number(e.target.value) || 0);
+                          setForm((f) => ({ ...f, prix_colis: String(sum) }));
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -535,6 +627,47 @@ function CommanderPage() {
                   </p>
                 </div>
               )}
+              <div>
+                <Label htmlFor="poids_kg">Poids (kg)</Label>
+                <Input
+                  id="poids_kg"
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step={0.1}
+                  className="mt-1"
+                  placeholder="Ex : 3"
+                  value={poidsKg}
+                  onChange={(e) => setPoidsKg(e.target.value)}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Les {POIDS_GRATUIT_KG} premiers kg sont inclus. Au-delà : {PRIX_PAR_KG_SUPPLEMENTAIRE} DA/kg supplémentaire.
+                </p>
+                <div className="mt-2 rounded-lg border border-border bg-secondary/40 p-3">
+                  <div className="mb-2 text-xs font-bold text-muted-foreground">
+                    Pas de balance ? Mesurez les dimensions (cm) — on calcule un poids estimé
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Input type="number" inputMode="decimal" min={0} placeholder="Long." value={dimLongueur} onChange={(e) => setDimLongueur(e.target.value)} />
+                    <Input type="number" inputMode="decimal" min={0} placeholder="Larg." value={dimLargeur} onChange={(e) => setDimLargeur(e.target.value)} />
+                    <Input type="number" inputMode="decimal" min={0} placeholder="Haut." value={dimHauteur} onChange={(e) => setDimHauteur(e.target.value)} />
+                  </div>
+                  {surpoids.volumetrique > 0 && (
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      Poids estimé par le volume : <strong>{Math.round(surpoids.volumetrique * 10) / 10} kg</strong>
+                    </p>
+                  )}
+                </div>
+                {surpoids.frais > 0 && (
+                  <div className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-warning/10 px-2.5 py-2 text-xs text-warning">
+                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      Poids facturable : <strong>{Math.round(surpoids.facturable * 10) / 10} kg</strong> → surpoids de{" "}
+                      <strong>{Math.round(surpoids.facturable - POIDS_GRATUIT_KG)} kg</strong>, soit <strong>+{surpoids.frais} DA</strong> de frais de livraison.
+                    </span>
+                  </div>
+                )}
+              </div>
               <div>
                 <Label htmlFor="desc">{t("cmd.desc")}</Label>
                 <Textarea id="desc" className="mt-1" rows={3} value={form.description}
@@ -599,6 +732,12 @@ function CommanderPage() {
                 {estimation ? (
                   <>
                     <div className="mt-1 text-sm text-white/80">{t("cmd.distance")} : <strong>{estimation.km} km</strong></div>
+                    {estimation.surpoids > 0 && (
+                      <div className="mt-2 space-y-0.5 text-sm text-white/80">
+                        <div className="flex justify-between"><span>Livraison</span><span>{estimation.base} DA</span></div>
+                        <div className="flex justify-between text-warning"><span>Surpoids</span><span>+{estimation.surpoids} DA</span></div>
+                      </div>
+                    )}
                     <div className="mt-2 text-4xl font-black text-primary">{estimation.prix} <span className="text-base font-medium text-white/70">DA</span></div>
                   </>
                 ) : (

@@ -1,3 +1,5 @@
+import { useI18n, Ltr } from "@/hooks/use-i18n";
+
 function isThisMonth(iso: string) {
   const d = new Date(iso), n = new Date();
   return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth();
@@ -13,7 +15,8 @@ function isToday(iso: string) {
   return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
 }
 
-// Mini-courbe SVG (sans librairie) — points = nombre de colis créés par jour, 14 derniers jours
+// Mini-courbe SVG (sans librairie) — points = nombre de colis créés par jour, 14 derniers jours.
+// Repère : ligne de base pointillée + point final mis en évidence, pour une lecture rapide de la tendance.
 function Sparkline({ points }: { points: number[] }) {
   const w = 240, h = 60, pad = 4;
   const max = Math.max(1, ...points);
@@ -21,10 +24,13 @@ function Sparkline({ points }: { points: number[] }) {
   const coords = points.map((v, i) => [pad + i * stepX, h - pad - (v / max) * (h - pad * 2)]);
   const line = coords.map((c) => c.join(",")).join(" ");
   const area = `${pad},${h - pad} ${line} ${w - pad},${h - pad}`;
+  const [lastX, lastY] = coords[coords.length - 1] ?? [w - pad, h - pad];
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="h-full w-full">
+      <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="currentColor" strokeOpacity={0.15} strokeDasharray="2 3" />
       <polygon points={area} fill="currentColor" opacity={0.12} />
       <polyline points={line} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r={3.5} fill="currentColor" stroke="var(--color-card)" strokeWidth={1.5} />
     </svg>
   );
 }
@@ -54,6 +60,7 @@ function Donut({ segments }: { segments: { value: number; color: string }[] }) {
 }
 
 export function ClientDashboardPanel({ colis }: { colis: any[] }) {
+  const { t } = useI18n();
   const aujourdhui = colis.filter((c) => isToday(c.date_creation)).length;
   const semaine = colis.filter((c) => isThisWeek(c.date_creation)).length;
   const mois = colis.filter((c) => isThisMonth(c.date_creation)).length;
@@ -94,21 +101,21 @@ export function ClientDashboardPanel({ colis }: { colis: any[] }) {
     <div className="mb-6 grid gap-3 lg:grid-cols-2">
       {/* COD + courbe */}
       <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-        <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">COD encaissé ce mois</div>
-        <div className="mt-1 text-3xl font-black">{codMois.toLocaleString("fr-FR")} <span className="text-base font-medium text-muted-foreground">DA</span></div>
+        <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("cdp.codMonth")}</div>
+        <div className="mt-1 text-3xl font-black"><Ltr>{codMois.toLocaleString("fr-FR")}</Ltr> <span className="text-base font-medium text-muted-foreground">DA</span></div>
         <div className="mt-3 h-16 text-primary"><Sparkline points={jours} /></div>
         <div className="mt-3 grid grid-cols-4 gap-2 border-t border-border pt-3 text-center">
-          <div><div className="text-lg font-black">{aujourdhui}</div><div className="text-[10px] uppercase text-muted-foreground">Aujourd'hui</div></div>
-          <div><div className="text-lg font-black">{semaine}</div><div className="text-[10px] uppercase text-muted-foreground">Semaine</div></div>
-          <div><div className="text-lg font-black">{mois}</div><div className="text-[10px] uppercase text-muted-foreground">Mois</div></div>
-          <div><div className="text-lg font-black">{total}</div><div className="text-[10px] uppercase text-muted-foreground">Total</div></div>
+          <div><div className="text-lg font-black">{aujourdhui}</div><div className="text-[10px] uppercase text-muted-foreground">{t("cdp.today")}</div></div>
+          <div><div className="text-lg font-black">{semaine}</div><div className="text-[10px] uppercase text-muted-foreground">{t("cdp.week")}</div></div>
+          <div><div className="text-lg font-black">{mois}</div><div className="text-[10px] uppercase text-muted-foreground">{t("cdp.month")}</div></div>
+          <div><div className="text-lg font-black">{total}</div><div className="text-[10px] uppercase text-muted-foreground">{t("cdp.total")}</div></div>
         </div>
       </div>
 
       {/* Répartition + destinations */}
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-          <div className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Répartition</div>
+          <div className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("cdp.breakdown")}</div>
           <div className="mx-auto h-24 w-24">
             <Donut segments={[
               { value: livres, color: "#22c55e" },
@@ -117,17 +124,17 @@ export function ClientDashboardPanel({ colis }: { colis: any[] }) {
             ]} />
           </div>
           <div className="mt-2 space-y-1 text-[11px]">
-            <div className="flex items-center justify-between"><span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-success" />Livrés</span><span>{total ? Math.round((livres / total) * 100) : 0}%</span></div>
-            <div className="flex items-center justify-between"><span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-info" />En cours</span><span>{total ? Math.round((enCours / total) * 100) : 0}%</span></div>
-            <div className="flex items-center justify-between"><span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-destructive" />Échecs</span><span>{total ? Math.round((echecs / total) * 100) : 0}%</span></div>
+            <div className="flex items-center justify-between"><span><span className="me-1 inline-block h-2 w-2 rounded-full bg-success" />{t("cdp.delivered")}</span><span>{total ? Math.round((livres / total) * 100) : 0}%</span></div>
+            <div className="flex items-center justify-between"><span><span className="me-1 inline-block h-2 w-2 rounded-full bg-info" />{t("cdp.inProgress")}</span><span>{total ? Math.round((enCours / total) * 100) : 0}%</span></div>
+            <div className="flex items-center justify-between"><span><span className="me-1 inline-block h-2 w-2 rounded-full bg-destructive" />{t("cdp.failed")}</span><span>{total ? Math.round((echecs / total) * 100) : 0}%</span></div>
           </div>
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-          <div className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Destinations fréquentes</div>
+          <div className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("cdp.topDest")}</div>
           <div className="space-y-2.5">
             {topDestinations.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Aucune donnée.</p>
+              <p className="text-xs text-muted-foreground">{t("cdp.noData")}</p>
             ) : topDestinations.map(([nom, n]) => (
               <div key={nom}>
                 <div className="mb-0.5 flex justify-between text-[11px]"><span className="truncate">{nom}</span><span className="text-muted-foreground">{n}</span></div>

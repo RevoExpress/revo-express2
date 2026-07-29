@@ -29,10 +29,22 @@ export type Database = {
           expediteur_adresse: string
           expediteur_nom: string
           expediteur_tel: string
+          frais_surpoids: number
+          hauteur_cm: number | null
           id: string
+          largeur_cm: number | null
           livreur_id: string | null
+          longueur_cm: number | null
+          poids_kg: number | null
+          remis_livreur_id: string | null
           prix: number
           prix_colis: number
+          split_article1_nom: string | null
+          split_article1_prix: number | null
+          split_article1_livre: boolean
+          split_article2_nom: string | null
+          split_article2_prix: number | null
+          split_article2_livre: boolean
           statut: string
           tracking: string
           type_livraison: string
@@ -52,10 +64,22 @@ export type Database = {
           expediteur_adresse: string
           expediteur_nom: string
           expediteur_tel: string
+          frais_surpoids?: number
+          hauteur_cm?: number | null
           id?: string
+          largeur_cm?: number | null
           livreur_id?: string | null
+          longueur_cm?: number | null
+          poids_kg?: number | null
+          remis_livreur_id?: string | null
           prix?: number
           prix_colis?: number
+          split_article1_nom?: string | null
+          split_article1_prix?: number | null
+          split_article1_livre?: boolean
+          split_article2_nom?: string | null
+          split_article2_prix?: number | null
+          split_article2_livre?: boolean
           statut?: string
           tracking: string
           type_livraison?: string
@@ -75,10 +99,22 @@ export type Database = {
           expediteur_adresse?: string
           expediteur_nom?: string
           expediteur_tel?: string
+          frais_surpoids?: number
+          hauteur_cm?: number | null
           id?: string
+          largeur_cm?: number | null
           livreur_id?: string | null
+          longueur_cm?: number | null
+          poids_kg?: number | null
+          remis_livreur_id?: string | null
           prix?: number
           prix_colis?: number
+          split_article1_nom?: string | null
+          split_article1_prix?: number | null
+          split_article1_livre?: boolean
+          split_article2_nom?: string | null
+          split_article2_prix?: number | null
+          split_article2_livre?: boolean
           statut?: string
           tracking?: string
           type_livraison?: string
@@ -88,28 +124,37 @@ export type Database = {
       }
       colis_historique: {
         Row: {
+          ancien_statut: string | null
           colis_id: string
           created_at: string
           description: string | null
           id: string
           lieu: string | null
+          motif: string | null
           statut: string
+          user_id: string | null
         }
         Insert: {
+          ancien_statut?: string | null
           colis_id: string
           created_at?: string
           description?: string | null
           id?: string
           lieu?: string | null
+          motif?: string | null
           statut: string
+          user_id?: string | null
         }
         Update: {
+          ancien_statut?: string | null
           colis_id?: string
           created_at?: string
           description?: string | null
           id?: string
           lieu?: string | null
+          motif?: string | null
           statut?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -195,6 +240,7 @@ export type Database = {
           id: string
           nom: string | null
           nom_boutique: string | null
+          objectif_ca_mensuel: number | null
           telephone: string | null
           updated_at: string
           wilaya: string | null
@@ -206,6 +252,7 @@ export type Database = {
           id: string
           nom?: string | null
           nom_boutique?: string | null
+          objectif_ca_mensuel?: number | null
           telephone?: string | null
           updated_at?: string
           wilaya?: string | null
@@ -217,6 +264,7 @@ export type Database = {
           id?: string
           nom?: string | null
           nom_boutique?: string | null
+          objectif_ca_mensuel?: number | null
           telephone?: string | null
           updated_at?: string
           wilaya?: string | null

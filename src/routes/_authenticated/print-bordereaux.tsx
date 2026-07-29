@@ -1,14 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { ArrowLeft, Printer, Loader2, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Bordereau } from "@/components/bordereau";
+import { Bordereau, Bordereau10x10 } from "@/components/bordereau";
 import { Button } from "@/components/ui/button";
 
 const searchSchema = z.object({
   ids: z.string().optional().default(""),
-  format: z.enum(["a4", "a6"]).optional().default("a4"),
+  format: z.enum(["a4", "a6", "10x10"]).optional().default("a4"),
 });
 
 export const Route = createFileRoute("/_authenticated/print-bordereaux")({
@@ -51,16 +51,21 @@ function PrintBordereauxPage() {
     });
   }, [ids]);
 
+  const autoPrinted = useRef(false);
   useEffect(() => {
-    if (!rows || rows.length === 0) return;
+    // Pas de cleanup qui annule le minuteur/listener : en dev, React ré-exécute cet effet une
+    // deuxième fois après son premier passage, et un cleanup qui fait clearTimeout/removeEventListener
+    // annulait le déclenchement programmé par le premier passage sans jamais le reprogrammer (le
+    // verrou autoPrinted bloque le second passage). Le verrou suffit à garantir un seul appel.
+    if (!rows || rows.length === 0 || autoPrinted.current) return;
+    autoPrinted.current = true;
     const doPrint = () => window.print();
     if (document.readyState === "complete") {
-      const t = setTimeout(doPrint, 700);
-      return () => clearTimeout(t);
+      setTimeout(doPrint, 700);
+    } else {
+      window.addEventListener("load", doPrint, { once: true });
     }
-    window.addEventListener("load", doPrint);
-    return () => window.removeEventListener("load", doPrint);
-  }, [rows, format]);
+  }, [rows]);
 
   if (rows === null) {
     return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><Loader2 style={{ width: 32, height: 32 }} className="animate-spin" /></div>;
@@ -76,7 +81,7 @@ function PrintBordereauxPage() {
     );
   }
 
-  const switchFormat = (f: "a4" | "a6") => {
+  const switchFormat = (f: "a4" | "a6" | "10x10") => {
     navigate({ to: "/print-bordereaux", search: { ids, format: f } as any, replace: true });
   };
 
@@ -133,7 +138,24 @@ function PrintBordereauxPage() {
           display: flex; align-items: center; justify-content: center;
         }
 
-        @page { size: ${format === "a6" ? "A6 portrait" : "A4 portrait"}; margin: 0; }
+        .mode-10x10 .page {
+          width: 100mm; height: 100mm;
+          box-sizing: border-box;
+          position: relative;
+          page-break-after: always;
+        }
+        .mode-10x10 .page:last-child { page-break-after: auto; }
+        .mode-10x10 .quad {
+          position: absolute;
+          top: 0; left: 0;
+          width: 100mm; height: 100mm;
+          display: flex; align-items: center; justify-content: center;
+        }
+
+        /* Dimensions explicites en mm plutôt qu'un mot-clé de format nommé : certains pilotes
+           d'imprimante/téléphones ne reconnaissent pas les tailles non standard et redimensionnent
+           le contenu de façon imprévisible. */
+        @page { size: ${format === "a6" ? "105mm 148.5mm" : format === "10x10" ? "100mm 100mm" : "210mm 297mm"}; margin: 0; }
       `}</style>
 
       <div className="no-print sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
@@ -157,6 +179,14 @@ function PrintBordereauxPage() {
               className={format === "a6" ? "gap-2 bg-primary text-primary-foreground" : "gap-2"}
             >
               <FileText className="h-4 w-4" /> A6 direct
+            </Button>
+            <Button
+              variant={format === "10x10" ? "default" : "outline"}
+              size="sm"
+              onClick={() => switchFormat("10x10")}
+              className={format === "10x10" ? "gap-2 bg-primary text-primary-foreground" : "gap-2"}
+            >
+              <FileText className="h-4 w-4" /> 10×10
             </Button>
           </div>
           <div className="text-sm font-semibold whitespace-nowrap">
@@ -194,6 +224,18 @@ function PrintBordereauxPage() {
             <div key={c.id} className="page">
               <div className="quad">
                 <Bordereau colis={c} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {format === "10x10" && (
+        <div className="mode-10x10">
+          {rows.map((c) => (
+            <div key={c.id} className="page">
+              <div className="quad">
+                <Bordereau10x10 colis={c} />
               </div>
             </div>
           ))}

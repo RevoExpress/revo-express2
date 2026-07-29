@@ -168,7 +168,7 @@ export const listStaff = createServerFn({ method: "POST" })
     const { data: rows } = await supabaseAdmin
       .from("user_roles")
       .select("user_id, role")
-      .in("role", ["admin_commercial", "admin_operations", "admin_service_client", "commercial", "service_client"]);
+      .in("role", ["directeur_commercial", "admin_commercial", "admin_operations", "admin_service_client", "commercial", "service_client"]);
     const ids = (rows ?? []).map((r) => r.user_id);
     if (!ids.length) return { staff: [] };
     const { data: profiles } = await supabaseAdmin

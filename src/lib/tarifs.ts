@@ -20,6 +20,29 @@ export function priceForDelivery(km: number, type: DeliveryType): number {
   return type === "standard" ? STANDARD_PRICE : priceForKm(km);
 }
 
+// ─── SURPOIDS ───────────────────────────────────────────────────
+// Les 5 premiers kg sont inclus dans le tarif de base ; au-delà, 50 DA/kg.
+// Si le commerçant ne connaît que les dimensions (pas de balance), on calcule un
+// poids volumétrique (convention transporteur standard : L×l×h en cm / 5000) et on
+// facture sur le plus élevé des deux — pratique courante chez les transporteurs.
+export const POIDS_GRATUIT_KG = 5;
+export const PRIX_PAR_KG_SUPPLEMENTAIRE = 50;
+
+export function poidsVolumetriqueKg(longueurCm: number, largeurCm: number, hauteurCm: number): number {
+  if (!longueurCm || !largeurCm || !hauteurCm) return 0;
+  return (longueurCm * largeurCm * hauteurCm) / 5000;
+}
+
+export function poidsFacturableKg(poidsKg: number, poidsVolumetrique: number): number {
+  return Math.max(poidsKg || 0, poidsVolumetrique || 0);
+}
+
+export function fraisSurpoids(poidsFacturableKgVal: number): number {
+  const exces = poidsFacturableKgVal - POIDS_GRATUIT_KG;
+  if (exces <= 0) return 0;
+  return Math.ceil(exces) * PRIX_PAR_KG_SUPPLEMENTAIRE;
+}
+
 // ─── COD ────────────────────────────────────────────────────────
 export function totalCOD(
   prixProduit: number,
@@ -30,15 +53,17 @@ export function totalCOD(
 }
 
 // ─── STATUTS OFFICIELS ──────────────────────────────────────────
+// Couleur à 3 niveaux, volontairement simple : vert = ça avance normalement,
+// orange = ça a besoin d'un œil (pas encore un problème réglé), rouge = issue négative actée.
 export const STATUTS = [
   { key: "en-preparation", label: "En préparation", color: "warning" },
-  { key: "ramasse", label: "Ramassé", color: "info" },
-  { key: "expedie", label: "Expédié", color: "info" },
-  { key: "en-livraison", label: "En livraison", color: "info" },
+  { key: "ramasse", label: "Ramassé", color: "success" },
+  { key: "expedie", label: "Expédié", color: "success" },
+  { key: "en-livraison", label: "En livraison", color: "success" },
   { key: "contact-client", label: "Contact client", color: "warning" },
   { key: "client-injoignable-1", label: "Client injoignable 1", color: "warning" },
   { key: "client-injoignable-2", label: "Client injoignable 2", color: "warning" },
-  { key: "client-injoignable-3", label: "Client injoignable 3", color: "destructive" },
+  { key: "client-injoignable-3", label: "Client injoignable 3", color: "warning" },
   { key: "livre", label: "Livré", color: "success" },
   { key: "reporte", label: "Reporté", color: "warning" },
   { key: "echec-livraison", label: "Échec de livraison", color: "destructive" },

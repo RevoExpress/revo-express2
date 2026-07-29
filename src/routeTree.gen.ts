@@ -19,6 +19,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as TrackCodeRouteImport } from './routes/track.$code'
 import { Route as AuthenticatedSuiviLivreursRouteImport } from './routes/_authenticated/suivi-livreurs'
 import { Route as AuthenticatedServiceClientRouteImport } from './routes/_authenticated/service-client'
+import { Route as AuthenticatedRamassagesRouteImport } from './routes/_authenticated/ramassages'
 import { Route as AuthenticatedProspectionRouteImport } from './routes/_authenticated/prospection'
 import { Route as AuthenticatedProfilRouteImport } from './routes/_authenticated/profil'
 import { Route as AuthenticatedPrintBordereauxRouteImport } from './routes/_authenticated/print-bordereaux'
@@ -28,13 +29,17 @@ import { Route as AuthenticatedMesRetoursRouteImport } from './routes/_authentic
 import { Route as AuthenticatedMesColisRouteImport } from './routes/_authenticated/mes-colis'
 import { Route as AuthenticatedLivreurRouteImport } from './routes/_authenticated/livreur'
 import { Route as AuthenticatedImportRouteImport } from './routes/_authenticated/import'
+import { Route as AuthenticatedHistoriqueRouteImport } from './routes/_authenticated/historique'
 import { Route as AuthenticatedFinanceRouteImport } from './routes/_authenticated/finance'
 import { Route as AuthenticatedFeuilleDeRouteRouteImport } from './routes/_authenticated/feuille-de-route'
 import { Route as AuthenticatedEquipeRouteImport } from './routes/_authenticated/equipe'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedComptesRouteImport } from './routes/_authenticated/comptes'
 import { Route as AuthenticatedCommercialRouteImport } from './routes/_authenticated/commercial'
 import { Route as AuthenticatedCommandesApiRouteImport } from './routes/_authenticated/commandes-api'
 import { Route as AuthenticatedClesApiRouteImport } from './routes/_authenticated/cles-api'
+import { Route as AuthenticatedCarteClientsRouteImport } from './routes/_authenticated/carte-clients'
+import { Route as AuthenticatedCalendrierRouteImport } from './routes/_authenticated/calendrier'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedPrintTrackingRouteImport } from './routes/_authenticated/print.$tracking'
 import { Route as AuthenticatedPrintReversementIdRouteImport } from './routes/_authenticated/print-reversement.$id'
@@ -92,6 +97,11 @@ const AuthenticatedServiceClientRoute =
     path: '/service-client',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedRamassagesRoute = AuthenticatedRamassagesRouteImport.update({
+  id: '/ramassages',
+  path: '/ramassages',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedProspectionRoute =
   AuthenticatedProspectionRouteImport.update({
     id: '/prospection',
@@ -140,6 +150,11 @@ const AuthenticatedImportRoute = AuthenticatedImportRouteImport.update({
   path: '/import',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedHistoriqueRoute = AuthenticatedHistoriqueRouteImport.update({
+  id: '/historique',
+  path: '/historique',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedFinanceRoute = AuthenticatedFinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
@@ -154,6 +169,11 @@ const AuthenticatedFeuilleDeRouteRoute =
 const AuthenticatedEquipeRoute = AuthenticatedEquipeRouteImport.update({
   id: '/equipe',
   path: '/equipe',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedComptesRoute = AuthenticatedComptesRouteImport.update({
@@ -175,6 +195,17 @@ const AuthenticatedCommandesApiRoute =
 const AuthenticatedClesApiRoute = AuthenticatedClesApiRouteImport.update({
   id: '/cles-api',
   path: '/cles-api',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedCarteClientsRoute =
+  AuthenticatedCarteClientsRouteImport.update({
+    id: '/carte-clients',
+    path: '/carte-clients',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedCalendrierRoute = AuthenticatedCalendrierRouteImport.update({
+  id: '/calendrier',
+  path: '/calendrier',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -214,13 +245,17 @@ export interface FileRoutesByFullPath {
   '/suivi': typeof SuiviRoute
   '/tarifs': typeof TarifsRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/calendrier': typeof AuthenticatedCalendrierRoute
+  '/carte-clients': typeof AuthenticatedCarteClientsRoute
   '/cles-api': typeof AuthenticatedClesApiRoute
   '/commandes-api': typeof AuthenticatedCommandesApiRoute
   '/commercial': typeof AuthenticatedCommercialRoute
   '/comptes': typeof AuthenticatedComptesRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/equipe': typeof AuthenticatedEquipeRoute
   '/feuille-de-route': typeof AuthenticatedFeuilleDeRouteRoute
   '/finance': typeof AuthenticatedFinanceRoute
+  '/historique': typeof AuthenticatedHistoriqueRoute
   '/import': typeof AuthenticatedImportRoute
   '/livreur': typeof AuthenticatedLivreurRoute
   '/mes-colis': typeof AuthenticatedMesColisRoute
@@ -230,6 +265,7 @@ export interface FileRoutesByFullPath {
   '/print-bordereaux': typeof AuthenticatedPrintBordereauxRoute
   '/profil': typeof AuthenticatedProfilRoute
   '/prospection': typeof AuthenticatedProspectionRoute
+  '/ramassages': typeof AuthenticatedRamassagesRoute
   '/service-client': typeof AuthenticatedServiceClientRoute
   '/suivi-livreurs': typeof AuthenticatedSuiviLivreursRoute
   '/track/$code': typeof TrackCodeRoute
@@ -246,13 +282,17 @@ export interface FileRoutesByTo {
   '/suivi': typeof SuiviRoute
   '/tarifs': typeof TarifsRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/calendrier': typeof AuthenticatedCalendrierRoute
+  '/carte-clients': typeof AuthenticatedCarteClientsRoute
   '/cles-api': typeof AuthenticatedClesApiRoute
   '/commandes-api': typeof AuthenticatedCommandesApiRoute
   '/commercial': typeof AuthenticatedCommercialRoute
   '/comptes': typeof AuthenticatedComptesRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/equipe': typeof AuthenticatedEquipeRoute
   '/feuille-de-route': typeof AuthenticatedFeuilleDeRouteRoute
   '/finance': typeof AuthenticatedFinanceRoute
+  '/historique': typeof AuthenticatedHistoriqueRoute
   '/import': typeof AuthenticatedImportRoute
   '/livreur': typeof AuthenticatedLivreurRoute
   '/mes-colis': typeof AuthenticatedMesColisRoute
@@ -262,6 +302,7 @@ export interface FileRoutesByTo {
   '/print-bordereaux': typeof AuthenticatedPrintBordereauxRoute
   '/profil': typeof AuthenticatedProfilRoute
   '/prospection': typeof AuthenticatedProspectionRoute
+  '/ramassages': typeof AuthenticatedRamassagesRoute
   '/service-client': typeof AuthenticatedServiceClientRoute
   '/suivi-livreurs': typeof AuthenticatedSuiviLivreursRoute
   '/track/$code': typeof TrackCodeRoute
@@ -280,13 +321,17 @@ export interface FileRoutesById {
   '/suivi': typeof SuiviRoute
   '/tarifs': typeof TarifsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/calendrier': typeof AuthenticatedCalendrierRoute
+  '/_authenticated/carte-clients': typeof AuthenticatedCarteClientsRoute
   '/_authenticated/cles-api': typeof AuthenticatedClesApiRoute
   '/_authenticated/commandes-api': typeof AuthenticatedCommandesApiRoute
   '/_authenticated/commercial': typeof AuthenticatedCommercialRoute
   '/_authenticated/comptes': typeof AuthenticatedComptesRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/equipe': typeof AuthenticatedEquipeRoute
   '/_authenticated/feuille-de-route': typeof AuthenticatedFeuilleDeRouteRoute
   '/_authenticated/finance': typeof AuthenticatedFinanceRoute
+  '/_authenticated/historique': typeof AuthenticatedHistoriqueRoute
   '/_authenticated/import': typeof AuthenticatedImportRoute
   '/_authenticated/livreur': typeof AuthenticatedLivreurRoute
   '/_authenticated/mes-colis': typeof AuthenticatedMesColisRoute
@@ -296,6 +341,7 @@ export interface FileRoutesById {
   '/_authenticated/print-bordereaux': typeof AuthenticatedPrintBordereauxRoute
   '/_authenticated/profil': typeof AuthenticatedProfilRoute
   '/_authenticated/prospection': typeof AuthenticatedProspectionRoute
+  '/_authenticated/ramassages': typeof AuthenticatedRamassagesRoute
   '/_authenticated/service-client': typeof AuthenticatedServiceClientRoute
   '/_authenticated/suivi-livreurs': typeof AuthenticatedSuiviLivreursRoute
   '/track/$code': typeof TrackCodeRoute
@@ -314,13 +360,17 @@ export interface FileRouteTypes {
     | '/suivi'
     | '/tarifs'
     | '/admin'
+    | '/calendrier'
+    | '/carte-clients'
     | '/cles-api'
     | '/commandes-api'
     | '/commercial'
     | '/comptes'
+    | '/dashboard'
     | '/equipe'
     | '/feuille-de-route'
     | '/finance'
+    | '/historique'
     | '/import'
     | '/livreur'
     | '/mes-colis'
@@ -330,6 +380,7 @@ export interface FileRouteTypes {
     | '/print-bordereaux'
     | '/profil'
     | '/prospection'
+    | '/ramassages'
     | '/service-client'
     | '/suivi-livreurs'
     | '/track/$code'
@@ -346,13 +397,17 @@ export interface FileRouteTypes {
     | '/suivi'
     | '/tarifs'
     | '/admin'
+    | '/calendrier'
+    | '/carte-clients'
     | '/cles-api'
     | '/commandes-api'
     | '/commercial'
     | '/comptes'
+    | '/dashboard'
     | '/equipe'
     | '/feuille-de-route'
     | '/finance'
+    | '/historique'
     | '/import'
     | '/livreur'
     | '/mes-colis'
@@ -362,6 +417,7 @@ export interface FileRouteTypes {
     | '/print-bordereaux'
     | '/profil'
     | '/prospection'
+    | '/ramassages'
     | '/service-client'
     | '/suivi-livreurs'
     | '/track/$code'
@@ -379,13 +435,17 @@ export interface FileRouteTypes {
     | '/suivi'
     | '/tarifs'
     | '/_authenticated/admin'
+    | '/_authenticated/calendrier'
+    | '/_authenticated/carte-clients'
     | '/_authenticated/cles-api'
     | '/_authenticated/commandes-api'
     | '/_authenticated/commercial'
     | '/_authenticated/comptes'
+    | '/_authenticated/dashboard'
     | '/_authenticated/equipe'
     | '/_authenticated/feuille-de-route'
     | '/_authenticated/finance'
+    | '/_authenticated/historique'
     | '/_authenticated/import'
     | '/_authenticated/livreur'
     | '/_authenticated/mes-colis'
@@ -395,6 +455,7 @@ export interface FileRouteTypes {
     | '/_authenticated/print-bordereaux'
     | '/_authenticated/profil'
     | '/_authenticated/prospection'
+    | '/_authenticated/ramassages'
     | '/_authenticated/service-client'
     | '/_authenticated/suivi-livreurs'
     | '/track/$code'
@@ -487,6 +548,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedServiceClientRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/ramassages': {
+      id: '/_authenticated/ramassages'
+      path: '/ramassages'
+      fullPath: '/ramassages'
+      preLoaderRoute: typeof AuthenticatedRamassagesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/prospection': {
       id: '/_authenticated/prospection'
       path: '/prospection'
@@ -550,6 +618,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedImportRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/historique': {
+      id: '/_authenticated/historique'
+      path: '/historique'
+      fullPath: '/historique'
+      preLoaderRoute: typeof AuthenticatedHistoriqueRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/finance': {
       id: '/_authenticated/finance'
       path: '/finance'
@@ -569,6 +644,13 @@ declare module '@tanstack/react-router' {
       path: '/equipe'
       fullPath: '/equipe'
       preLoaderRoute: typeof AuthenticatedEquipeRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/comptes': {
@@ -597,6 +679,20 @@ declare module '@tanstack/react-router' {
       path: '/cles-api'
       fullPath: '/cles-api'
       preLoaderRoute: typeof AuthenticatedClesApiRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/carte-clients': {
+      id: '/_authenticated/carte-clients'
+      path: '/carte-clients'
+      fullPath: '/carte-clients'
+      preLoaderRoute: typeof AuthenticatedCarteClientsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/calendrier': {
+      id: '/_authenticated/calendrier'
+      path: '/calendrier'
+      fullPath: '/calendrier'
+      preLoaderRoute: typeof AuthenticatedCalendrierRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/admin': {
@@ -639,13 +735,17 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedCalendrierRoute: typeof AuthenticatedCalendrierRoute
+  AuthenticatedCarteClientsRoute: typeof AuthenticatedCarteClientsRoute
   AuthenticatedClesApiRoute: typeof AuthenticatedClesApiRoute
   AuthenticatedCommandesApiRoute: typeof AuthenticatedCommandesApiRoute
   AuthenticatedCommercialRoute: typeof AuthenticatedCommercialRoute
   AuthenticatedComptesRoute: typeof AuthenticatedComptesRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEquipeRoute: typeof AuthenticatedEquipeRoute
   AuthenticatedFeuilleDeRouteRoute: typeof AuthenticatedFeuilleDeRouteRoute
   AuthenticatedFinanceRoute: typeof AuthenticatedFinanceRoute
+  AuthenticatedHistoriqueRoute: typeof AuthenticatedHistoriqueRoute
   AuthenticatedImportRoute: typeof AuthenticatedImportRoute
   AuthenticatedLivreurRoute: typeof AuthenticatedLivreurRoute
   AuthenticatedMesColisRoute: typeof AuthenticatedMesColisRoute
@@ -655,6 +755,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedPrintBordereauxRoute: typeof AuthenticatedPrintBordereauxRoute
   AuthenticatedProfilRoute: typeof AuthenticatedProfilRoute
   AuthenticatedProspectionRoute: typeof AuthenticatedProspectionRoute
+  AuthenticatedRamassagesRoute: typeof AuthenticatedRamassagesRoute
   AuthenticatedServiceClientRoute: typeof AuthenticatedServiceClientRoute
   AuthenticatedSuiviLivreursRoute: typeof AuthenticatedSuiviLivreursRoute
   AuthenticatedBoutiqueIdRoute: typeof AuthenticatedBoutiqueIdRoute
@@ -665,13 +766,17 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedCalendrierRoute: AuthenticatedCalendrierRoute,
+  AuthenticatedCarteClientsRoute: AuthenticatedCarteClientsRoute,
   AuthenticatedClesApiRoute: AuthenticatedClesApiRoute,
   AuthenticatedCommandesApiRoute: AuthenticatedCommandesApiRoute,
   AuthenticatedCommercialRoute: AuthenticatedCommercialRoute,
   AuthenticatedComptesRoute: AuthenticatedComptesRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEquipeRoute: AuthenticatedEquipeRoute,
   AuthenticatedFeuilleDeRouteRoute: AuthenticatedFeuilleDeRouteRoute,
   AuthenticatedFinanceRoute: AuthenticatedFinanceRoute,
+  AuthenticatedHistoriqueRoute: AuthenticatedHistoriqueRoute,
   AuthenticatedImportRoute: AuthenticatedImportRoute,
   AuthenticatedLivreurRoute: AuthenticatedLivreurRoute,
   AuthenticatedMesColisRoute: AuthenticatedMesColisRoute,
@@ -681,6 +786,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedPrintBordereauxRoute: AuthenticatedPrintBordereauxRoute,
   AuthenticatedProfilRoute: AuthenticatedProfilRoute,
   AuthenticatedProspectionRoute: AuthenticatedProspectionRoute,
+  AuthenticatedRamassagesRoute: AuthenticatedRamassagesRoute,
   AuthenticatedServiceClientRoute: AuthenticatedServiceClientRoute,
   AuthenticatedSuiviLivreursRoute: AuthenticatedSuiviLivreursRoute,
   AuthenticatedBoutiqueIdRoute: AuthenticatedBoutiqueIdRoute,

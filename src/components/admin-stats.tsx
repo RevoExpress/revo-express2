@@ -27,6 +27,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { STATUTS, type StatutKey } from "@/lib/tarifs";
 import { cn } from "@/lib/utils";
+import { useI18n, Ltr, statutLabel } from "@/hooks/use-i18n";
 
 type Colis = {
   id: string;
@@ -96,7 +97,18 @@ function ChartTooltip(props: any) {
   );
 }
 
-export function AdminStats() {
+type QuickFilterKey = "aTraiter" | "enCours" | "livres" | "problemes" | null;
+
+export function AdminStats({
+  onFilterClick, activeFilter,
+}: {
+  /** Facultatif : si fourni, les cartes deviennent cliquables et pilotent le filtre rapide du
+   * ColisBoard affiché plus bas sur la même page (ex. cliquer "Échecs / Retours" ne montre que
+   * les colis en échec dans le tableau en dessous). */
+  onFilterClick?: (key: QuickFilterKey) => void;
+  activeFilter?: QuickFilterKey;
+} = {}) {
+  const { t, tf, lang } = useI18n();
   const [colis, setColis] = useState<Colis[]>([]);
   const [livreurs, setLivreurs] = useState<Livreur[]>([]);
   const [loading, setLoading] = useState(true);
@@ -180,12 +192,12 @@ export function AdminStats() {
 
   const statutData = useMemo(() => {
     return STATUTS.map((s) => ({
-      name: s.label,
+      name: statutLabel(s.key, t),
       key: s.key,
       value: colis.filter((c) => c.statut === s.key).length,
       color: STATUT_COLORS[s.key],
     })).filter((x) => x.value > 0);
-  }, [colis]);
+  }, [colis, lang]);
 
   const wilayaData = useMemo(() => {
     const map = new Map<string, number>();
@@ -208,12 +220,12 @@ export function AdminStats() {
       else if (!STATUTS_TERMINES_SANS_CA.includes(c.statut)) cur.encours += 1;
       byId.set(c.livreur_id, cur);
     }
-    const byName = new Map(livreurs.map((l) => [l.id, l.nom || l.email || "Livreur"]));
+    const byName = new Map(livreurs.map((l) => [l.id, l.nom || l.email || t("ast.livreurDefault")]));
     return Array.from(byId.entries())
-      .map(([id, v]) => ({ name: byName.get(id) || "Livreur", ...v, total: v.livre + v.encours }))
+      .map(([id, v]) => ({ name: byName.get(id) || t("ast.livreurDefault"), ...v, total: v.livre + v.encours }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 6);
-  }, [colis, livreurs]);
+  }, [colis, livreurs, lang]);
 
   if (loading) {
     return (
@@ -229,14 +241,21 @@ export function AdminStats() {
     <div className="space-y-6">
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiCard icon={Package} label="Total colis" value={kpis.total} tone="primary" />
-        <KpiCard icon={CheckCircle2} label="Livrés" value={kpis.livre} sub={`${kpis.taux}% taux livraison`} tone="success" />
-        <KpiCard icon={Truck} label="En cours" value={kpis.enCours} tone="primary" />
-        <KpiCard icon={Clock} label="En préparation" value={kpis.enPreparation} tone="warning" />
-        <KpiCard icon={Wallet} label="CA encaissé" value={fmtDA(kpis.caLivre)} sub="colis livrés" tone="success" wide />
-        <KpiCard icon={TrendingUp} label="CA en cours" value={fmtDA(kpis.caEnCours)} sub="à encaisser" tone="primary" wide />
-        <KpiCard icon={XCircle} label="Échecs / Retours" value={kpis.echec} tone="destructive" />
-        <KpiCard icon={Users} label="Livreurs" value={livreurs.length} tone="muted" />
+        <KpiCard icon={Package} label={t("ast.kpi.total")} value={kpis.total} tone="primary"
+          onClick={onFilterClick ? () => onFilterClick(null) : undefined} active={!activeFilter} />
+        <KpiCard icon={CheckCircle2} label={t("ast.kpi.livres")} value={kpis.livre} sub={tf("ast.kpi.deliveryRate", { n: kpis.taux })} tone="success"
+          onClick={onFilterClick ? () => onFilterClick(activeFilter === "livres" ? null : "livres") : undefined} active={activeFilter === "livres"} />
+        <KpiCard icon={Truck} label={t("ast.kpi.enCours")} value={kpis.enCours} tone="primary"
+          onClick={onFilterClick ? () => onFilterClick(activeFilter === "enCours" ? null : "enCours") : undefined} active={activeFilter === "enCours"} />
+        <KpiCard icon={Clock} label={t("ast.kpi.enPreparation")} value={kpis.enPreparation} tone="warning"
+          onClick={onFilterClick ? () => onFilterClick(activeFilter === "aTraiter" ? null : "aTraiter") : undefined} active={activeFilter === "aTraiter"} />
+        <KpiCard icon={Wallet} label={t("ast.kpi.caEncaisse")} value={<Ltr>{fmtDA(kpis.caLivre)}</Ltr>} sub={t("ast.kpi.colisLivres")} tone="success" wide
+          onClick={onFilterClick ? () => onFilterClick(activeFilter === "livres" ? null : "livres") : undefined} active={activeFilter === "livres"} />
+        <KpiCard icon={TrendingUp} label={t("ast.kpi.caEnCours")} value={<Ltr>{fmtDA(kpis.caEnCours)}</Ltr>} sub={t("ast.kpi.aEncaisser")} tone="primary" wide
+          onClick={onFilterClick ? () => onFilterClick(activeFilter === "enCours" ? null : "enCours") : undefined} active={activeFilter === "enCours"} />
+        <KpiCard icon={XCircle} label={t("ast.kpi.echecsRetours")} value={kpis.echec} tone="destructive"
+          onClick={onFilterClick ? () => onFilterClick(activeFilter === "problemes" ? null : "problemes") : undefined} active={activeFilter === "problemes"} />
+        <KpiCard icon={Users} label={t("ast.kpi.livreurs")} value={livreurs.length} tone="muted" />
       </div>
 
       {/* Daily chart */}
@@ -244,9 +263,9 @@ export function AdminStats() {
         <div className="mb-4 flex items-end justify-between">
           <div>
             <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
-              Activité — 30 derniers jours
+              {t("ast.activity30d")}
             </h3>
-            <p className="text-xs text-muted-foreground">Colis créés et livrés par jour</p>
+            <p className="text-xs text-muted-foreground">{t("ast.activity30d.sub")}</p>
           </div>
         </div>
         <div className="h-64 w-full">
@@ -266,8 +285,8 @@ export function AdminStats() {
               <XAxis dataKey="label" stroke={C.axe} fontSize={11} tickLine={false} axisLine={false} interval={3} />
               <YAxis stroke={C.axe} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
               <Tooltip content={<ChartTooltip />} cursor={{ stroke: C.grille }} />
-              <Area type="monotone" name="Créés" dataKey="total" stroke={C.orange} strokeWidth={2} fill="url(#gradTotal)" />
-              <Area type="monotone" name="Livrés" dataKey="livre" stroke={C.vert} strokeWidth={2} fill="url(#gradLivre)" />
+              <Area type="monotone" name={t("ast.chart.created")} dataKey="total" stroke={C.orange} strokeWidth={2} fill="url(#gradTotal)" />
+              <Area type="monotone" name={t("ast.chart.delivered")} dataKey="livre" stroke={C.vert} strokeWidth={2} fill="url(#gradLivre)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -278,7 +297,7 @@ export function AdminStats() {
         {/* Statuts pie */}
         <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
           <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-muted-foreground">
-            Répartition par statut
+            {t("ast.breakdown")}
           </h3>
           <div className="flex flex-col items-center gap-4 sm:flex-row">
             <div className="h-56 w-full sm:w-1/2">
@@ -294,7 +313,7 @@ export function AdminStats() {
               </ResponsiveContainer>
             </div>
             <ul className="w-full space-y-2 sm:w-1/2">
-              {statutData.length === 0 && <li className="text-sm text-muted-foreground">Aucune donnée</li>}
+              {statutData.length === 0 && <li className="text-sm text-muted-foreground">{t("ast.noData")}</li>}
               {statutData.map((s) => (
                 <li key={s.key} className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-sm">
                   <span className="flex items-center gap-2">
@@ -311,12 +330,12 @@ export function AdminStats() {
         {/* Top wilayas */}
         <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
           <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-muted-foreground">
-            Top destinations
+            {t("ast.topDest")}
           </h3>
           <div className="h-56 w-full">
             {wilayaData.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                Aucune donnée
+                {t("ast.noData")}
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -325,7 +344,7 @@ export function AdminStats() {
                   <XAxis type="number" stroke={C.axe} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                   <YAxis type="category" dataKey="name" stroke={C.axe} fontSize={11} tickLine={false} axisLine={false} width={110} />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-                  <Bar dataKey="value" name="Colis" fill={C.orange} radius={[0, 6, 6, 0]} />
+                  <Bar dataKey="value" name={t("ast.chart.colis")} fill={C.orange} radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -336,12 +355,12 @@ export function AdminStats() {
       {/* Top livreurs */}
       <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
         <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-muted-foreground">
-          Performance des livreurs
+          {t("ast.driverPerf")}
         </h3>
         <div className="h-64 w-full">
           {livreurData.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              Aucun colis assigné pour le moment
+              {t("ast.noAssigned")}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
@@ -351,8 +370,8 @@ export function AdminStats() {
                 <YAxis stroke={C.axe} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
-                <Bar dataKey="livre" name="Livrés" stackId="a" fill={C.vert} radius={[0, 0, 0, 0]} />
-                <Bar dataKey="encours" name="En cours" stackId="a" fill={C.orange} radius={[6, 6, 0, 0]} />
+                <Bar dataKey="livre" name={t("ast.kpi.livres")} stackId="a" fill={C.vert} radius={[0, 0, 0, 0]} />
+                <Bar dataKey="encours" name={t("ast.kpi.enCours")} stackId="a" fill={C.orange} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -369,13 +388,17 @@ function KpiCard({
   sub,
   tone = "primary",
   wide,
+  onClick,
+  active,
 }: {
   icon: any;
   label: string;
-  value: string | number;
+  value: React.ReactNode;
   sub?: string;
   tone?: "primary" | "success" | "warning" | "destructive" | "muted";
   wide?: boolean;
+  onClick?: () => void;
+  active?: boolean;
 }) {
   const tones: Record<string, string> = {
     primary: "text-primary",
@@ -384,8 +407,18 @@ function KpiCard({
     destructive: "text-destructive",
     muted: "text-muted-foreground",
   };
+  const Tag = onClick ? "button" : "div";
   return (
-    <div className={cn("rounded-2xl border border-border bg-card p-4 shadow-card", wide && "md:col-span-2")}>
+    <Tag
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      className={cn(
+        "rounded-2xl border bg-card p-4 shadow-card transition-all",
+        wide && "md:col-span-2",
+        onClick && "cursor-pointer text-left hover:-translate-y-0.5 hover:shadow-glow",
+        active ? "border-primary ring-2 ring-primary/30" : "border-border",
+      )}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
@@ -396,6 +429,6 @@ function KpiCard({
           <Icon className="h-4 w-4" />
         </div>
       </div>
-    </div>
+    </Tag>
   );
 }

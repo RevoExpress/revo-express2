@@ -19,7 +19,9 @@ const seeAllProspects = (roles: AppRole[]) =>
 const canOps = (roles: AppRole[]) =>
   roles.some((r) => r === "admin" || r === "admin_operations");
 
-const ETAPES = ["a_contacter", "en_discussion", "en_test", "gagne", "perdu"] as const;
+const ETAPES = [
+  "prospect", "premier_contact", "negociation", "devis_envoye", "en_attente", "contrat_signe", "client_actif", "perdu",
+] as const;
 
 // ═══════════════════════════════════════════════════════════
 // PROSPECTION — CRUD
@@ -50,7 +52,7 @@ export const creerProspect = createServerFn({ method: "POST" })
       wilaya: data.wilaya ?? null,
       commune: data.commune ?? null,
       note: data.note ?? null,
-      etape: "a_contacter",
+      etape: "prospect",
       derniere_relance: new Date().toISOString(),
     }).select().single();
     if (error) throw new Error(error.message);
@@ -80,10 +82,17 @@ export const changerEtapeProspect = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const roles = await getRoles(context.supabase, context.userId);
     if (!canCommercial(roles)) throw new Error("Forbidden");
+    const { data: before } = await supabaseAdmin.from("prospects").select("etape, nom_boutique").eq("id", data.id).single();
     const { error } = await supabaseAdmin.from("prospects")
       .update({ etape: data.etape, derniere_relance: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    if (before && before.etape !== data.etape) {
+      await supabaseAdmin.rpc("log_audit", {
+        _domaine: "prospection", _action: "changement_etape",
+        _cible: before.nom_boutique, _ancienne: before.etape, _nouvelle: data.etape,
+      }).catch(() => {});
+    }
     return { ok: true };
   });
 
@@ -137,7 +146,7 @@ export const convertirProspectEnClient = createServerFn({ method: "POST" })
     await supabaseAdmin.from("user_roles").insert({ user_id: uid, role: "client" });
 
     await supabaseAdmin.from("prospects")
-      .update({ etape: "gagne", converti_client_id: uid, updated_at: new Date().toISOString() })
+      .update({ etape: "client_actif", converti_client_id: uid, updated_at: new Date().toISOString() })
       .eq("id", data.prospect_id);
 
     return { ok: true, client_id: uid };

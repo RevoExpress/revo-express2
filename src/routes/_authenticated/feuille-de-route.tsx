@@ -69,6 +69,7 @@ function FeuilleDeRoutePage() {
 
   return (
     <div className="min-h-screen bg-muted/30">
+      <style>{`@page { size: A4 portrait; margin: 12mm; }`}</style>
       {/* Toolbar (no print) */}
       <div className="no-print sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur">
         <div className="container mx-auto flex flex-wrap items-center justify-between gap-3 px-4 py-3">

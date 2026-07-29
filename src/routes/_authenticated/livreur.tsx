@@ -1,6 +1,7 @@
 import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Package, ScanLine, CheckCircle2, XCircle, Truck, ArrowRight, AlertTriangle, MapPin, MapPinOff } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { Loader2, Package, ScanLine, CheckCircle2, XCircle, Truck, ArrowRight, AlertTriangle, MapPin, MapPinOff, Wallet } from "lucide-react";
 import { ProPageHeader } from "@/components/pro-page-header";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +13,7 @@ import { STATUTS } from "@/lib/tarifs";
 import { Button } from "@/components/ui/button";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { TrackingBadge } from "@/components/tracking-badge";
+import { getMonSoldeLivreur } from "@/lib/finance.functions";
 
 export const Route = createFileRoute("/_authenticated/livreur")({
   head: () => ({ meta: [{ title: "Espace livreur — REVO EXPRESS" }] }),
@@ -38,12 +40,36 @@ const STATUTS_EN_COURS = [
   "reporte",
 ];
 
+// Même logique que le trigger DB prevent_statut_regression : un livreur ne peut
+// pas faire reculer un statut, ni toucher à un colis déjà à un statut final.
+// Seul admin/admin_operations peut faire ça (via /admin ou /operations).
+const STATUT_RANK: Record<string, number> = {
+  "en-preparation": 0,
+  "ramasse": 1,
+  "expedie": 2,
+  "en-livraison": 3,
+  "contact-client": 3,
+  "client-injoignable-1": 3,
+  "client-injoignable-2": 3,
+  "client-injoignable-3": 3,
+  "reporte": 3,
+  "livre": 4,
+  "echec-livraison": 4,
+  "retourne-vendeur": 4,
+  "annule": 4,
+};
+const isStatutTerminal = (s: string) => STATUT_RANK[s] === 4;
+const statutsAtteignables = (current: string) =>
+  STATUTS.filter((s) => (STATUT_RANK[s.key] ?? 3) >= (STATUT_RANK[current] ?? 3));
+
 function LivreurPage() {
   const { user, role, loading } = useAuth();
   const [colis, setColis] = useState<any[]>([]);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannedColis, setScannedColis] = useState<any | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [solde, setSolde] = useState<{ nb_colis: number; montant_du: number } | null>(null);
+  const soldeFn = useServerFn(getMonSoldeLivreur);
 
   useEffect(() => {
     if (!user || role !== "livreur") return;
@@ -55,6 +81,7 @@ function LivreurPage() {
     async function refresh() {
       const { data } = await supabase.from("colis").select("*").eq("livreur_id", user!.id).order("date_creation", { ascending: false });
       setColis(data || []);
+      soldeFn().then(setSolde).catch(() => {});
     }
   }, [user, role]);
 
@@ -71,6 +98,15 @@ function LivreurPage() {
   async function updateStatut(id: string, statut: string) {
     const { error } = await supabase.from("colis").update({ statut }).eq("id", id);
     if (error) toast.error(error.message); else toast.success("Statut mis à jour");
+  }
+
+  // Même comportement que sur /admin et /operations : appeler le destinataire passe
+  // automatiquement le colis en "Contact client", sauf s'il y est déjà ou si son sort
+  // est déjà réglé (on ne fait pas régresser un colis livré/échec/annulé/retourné).
+  function handlePhoneClick(c: any) {
+    if (c.statut === "contact-client" || isStatutTerminal(c.statut)) return;
+    void updateStatut(c.id, "contact-client");
+    setScannedColis((s: any) => (s && s.id === c.id ? { ...s, statut: "contact-client" } : s));
   }
 
   function handleDetected(text: string) {
@@ -101,7 +137,7 @@ function LivreurPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteNav />
-      <section className="container mx-auto flex-1 px-4 py-10">
+      <section className="container mx-auto flex-1 px-4 pb-24 pt-10">
         <ProPageHeader
           icon={Truck}
           title="Mes livraisons"
@@ -156,6 +192,25 @@ function LivreurPage() {
           </div>
         )}
 
+        {/* Solde à remettre au bureau */}
+        {solde && solde.nb_colis > 0 && (
+          <div className={`mb-4 flex items-center gap-3 rounded-xl border p-4 ${
+            solde.montant_du >= 20000 ? "border-destructive/40 bg-destructive/5" : "border-warning/40 bg-warning/5"
+          }`}>
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+              solde.montant_du >= 20000 ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning"
+            }`}>
+              <Wallet className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <div className={`text-xs font-bold uppercase tracking-wider ${solde.montant_du >= 20000 ? "text-destructive" : "text-warning"}`}>
+                Vous détenez actuellement
+              </div>
+              <div className="text-xl font-black">{solde.montant_du.toLocaleString("fr-FR")} DA</div>
+              <div className="text-xs text-muted-foreground">à remettre au bureau — {solde.nb_colis} colis livré{solde.nb_colis > 1 ? "s" : ""} encaissé{solde.nb_colis > 1 ? "s" : ""}</div>
+            </div>
+          </div>
+        )}
 
         {/* Stat cards */}
         <div className="mb-6 grid gap-3 sm:grid-cols-3">
@@ -186,7 +241,15 @@ function LivreurPage() {
                   <TrackingBadge typeColis={scannedColis.type_colis} />
                 </div>
                 <div className="mt-1 text-sm">
-                  <strong>{scannedColis.destinataire_nom}</strong> — {scannedColis.destinataire_tel}
+                  <strong>{scannedColis.destinataire_nom}</strong> —{" "}
+                  <a
+                    href={`tel:${scannedColis.destinataire_tel}`}
+                    onClick={() => handlePhoneClick(scannedColis)}
+                    className="font-bold text-primary hover:underline"
+                    title="Appeler — passe le colis en Contact client"
+                  >
+                    {scannedColis.destinataire_tel}
+                  </a>
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {scannedColis.destinataire_adresse} ({scannedColis.destinataire_wilaya})
@@ -254,14 +317,27 @@ function LivreurPage() {
                     <Badge statut={c.statut} />
                   </div>
                   <div className="mt-1 text-sm">
-                    <strong>Vers :</strong> {c.destinataire_nom} — Tél : {c.destinataire_tel}
+                    <strong>Vers :</strong> {c.destinataire_nom} — Tél :{" "}
+                    <a
+                      href={`tel:${c.destinataire_tel}`}
+                      onClick={() => handlePhoneClick(c)}
+                      className="font-bold text-primary hover:underline"
+                      title="Appeler — passe le colis en Contact client"
+                    >
+                      {c.destinataire_tel}
+                    </a>
                   </div>
                   <div className="text-xs text-muted-foreground">{c.destinataire_adresse} ({c.destinataire_wilaya})</div>
                   <div className="mt-1 text-xs text-muted-foreground">Départ : {c.depart} • {c.prix} DA</div>
                 </div>
-                <select value={c.statut} onChange={(e) => updateStatut(c.id, e.target.value)}
-                  className="rounded-md border border-input bg-transparent px-3 py-2 text-sm">
-                  {STATUTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                <select
+                  value={c.statut}
+                  disabled={isStatutTerminal(c.statut)}
+                  onChange={(e) => updateStatut(c.id, e.target.value)}
+                  className="rounded-md border border-input bg-transparent px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  title={isStatutTerminal(c.statut) ? "Statut final — contactez l'opération pour le modifier" : undefined}
+                >
+                  {statutsAtteignables(c.statut).map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
                 </select>
               </div>
             </div>
