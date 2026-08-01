@@ -70,11 +70,11 @@ function DashboardPage() {
         </div>
 
         <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <StatCard icon={Package} label={t("mc.stat.total")} value={stats.total} />
-          <StatCard icon={Clock} label={t("mc.stat.enCours")} value={stats.enCours} accent="info" />
-          <StatCard icon={CheckCircle2} label={t("mc.stat.livres")} value={stats.livres} accent="success" />
-          <StatCard icon={XCircle} label={t("mc.stat.echecs")} value={stats.echecs} accent="destructive" />
-          <StatCard icon={TrendingUp} label={t("mc.stat.cod")} value={<Ltr>{stats.cod} DA</Ltr>} accent="primary" />
+          <StatCard icon={Package} label={t("mc.stat.total")} value={stats.total} to="/mes-colis" />
+          <StatCard icon={Clock} label={t("mc.stat.enCours")} value={stats.enCours} accent="info" to="/mes-colis" />
+          <StatCard icon={CheckCircle2} label={t("mc.stat.livres")} value={stats.livres} accent="success" to="/mes-colis" />
+          <StatCard icon={XCircle} label={t("mc.stat.echecs")} value={stats.echecs} accent="destructive" to="/mes-colis" />
+          <StatCard icon={TrendingUp} label={t("mc.stat.cod")} value={<Ltr>{stats.cod} DA</Ltr>} accent="primary" to="/mon-paiement" />
         </div>
 
         <ClientDashboardPanel colis={colis} />
@@ -85,10 +85,12 @@ function DashboardPage() {
 }
 
 function StatCard({
-  icon: Icon, label, value, accent,
+  icon: Icon, label, value, accent, to,
 }: {
   icon: any; label: string; value: React.ReactNode;
   accent?: "info" | "success" | "destructive" | "primary";
+  /** Rend la carte cliquable — elles avaient l'apparence de boutons sans rien déclencher. */
+  to?: string;
 }) {
   const accentMap: Record<string, string> = {
     info: "text-info bg-info/10",
@@ -97,17 +99,19 @@ function StatCard({
     primary: "text-primary bg-primary/10",
   };
   const cls = accent ? accentMap[accent] : "text-foreground bg-muted";
-  return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="flex items-center gap-3">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${cls}`}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</div>
-          <div className="text-xl font-black">{value}</div>
-        </div>
+  const body = (
+    <div className="flex items-center gap-3">
+      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${cls}`}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div>
+        <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</div>
+        <div className="text-xl font-black">{value}</div>
       </div>
     </div>
   );
+  const base = "block rounded-xl border border-border bg-card p-4 transition-all";
+  return to
+    ? <Link to={to} className={`${base} hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-card`}>{body}</Link>
+    : <div className={base}>{body}</div>;
 }

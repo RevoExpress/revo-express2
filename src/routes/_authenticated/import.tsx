@@ -27,7 +27,10 @@ function ImportPage() {
   const [etape, setEtape] = useState<Etape>("choix");
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<any[]>([]);
-  const [check, setCheck] = useState<{ total: number; valides: number; erreurs: Array<{ ligne: number; message: string }> } | null>(null);
+  const [check, setCheck] = useState<{
+    total: number; valides: number; erreurs: Array<{ ligne: number; message: string }>;
+    profilIncomplet?: boolean; manque?: { adresse: boolean; commune: boolean };
+  } | null>(null);
   const [result, setResult] = useState<{ created: number; erreurs: Array<{ ligne: number; message: string }> } | null>(null);
   const [busy, setBusy] = useState(false);
   const [fatalError, setFatalError] = useState("");
@@ -149,7 +152,41 @@ function ImportPage() {
           )}
 
           {/* ÉTAPE 2 — vérification */}
-          {etape === "verification" && check && (
+          {etape === "verification" && check?.profilIncomplet && (
+            <div className="rounded-xl border border-warning/40 bg-warning/5 p-6">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-6 w-6 shrink-0 text-warning" />
+                <div className="flex-1">
+                  <h2 className="font-bold">Votre fichier est valide — c'est votre profil qu'il faut compléter</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Nous avons besoin de votre point de départ pour calculer les frais de livraison de
+                    chaque colis. Il manque :
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm">
+                    {check.manque?.adresse && (
+                      <li className="flex items-center gap-2"><XCircle className="h-4 w-4 shrink-0 text-destructive" /> Votre adresse</li>
+                    )}
+                    {check.manque?.commune && (
+                      <li className="flex items-center gap-2"><XCircle className="h-4 w-4 shrink-0 text-destructive" /> Votre commune de ramassage</li>
+                    )}
+                  </ul>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <a href="/profil">
+                      <Button className="gap-2 bg-gradient-primary font-bold">Compléter mon profil</Button>
+                    </a>
+                    <Button variant="outline" className="gap-2" onClick={reset}>
+                      <RotateCcw className="h-4 w-4" /> Recommencer
+                    </Button>
+                  </div>
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Votre fichier « {fileName} » ({check.total} lignes) sera importable dès que votre profil sera complet.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {etape === "verification" && check && !check.profilIncomplet && (
             <div className="rounded-xl border border-border bg-card p-6">
               <div className="flex items-center gap-3">
                 <FileSpreadsheet className="h-6 w-6 text-primary" />

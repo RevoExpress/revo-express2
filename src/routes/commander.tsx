@@ -262,9 +262,19 @@ function CommanderPage() {
     };
 
     if (canEditForm && editColis) {
-      const { error } = await supabase.from("colis").update(payload).eq("id", editColis.id);
+      // .select() est indispensable : quand RLS refuse la mise à jour, PostgREST ne renvoie
+      // aucune erreur, juste 0 ligne affectée. Sans cette vérification on affichait un faux
+      // « mis à jour » alors que rien n'était enregistré.
+      const { data: updated, error } = await supabase
+        .from("colis").update(payload).eq("id", editColis.id).select();
       setSubmitting(false);
       if (error) { toast.error("Échec de la mise à jour", { description: error.message }); return; }
+      if (!updated || updated.length === 0) {
+        toast.error("Modification non enregistrée", {
+          description: "Vous n'avez pas les droits nécessaires, ou le colis n'est plus modifiable (il a déjà quitté l'étape « En préparation »).",
+        });
+        return;
+      }
       toast.success(`Colis ${editColis.tracking} mis à jour`);
       navigate({ to: "/mes-colis" });
       return;

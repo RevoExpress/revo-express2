@@ -22,6 +22,7 @@ import { ColisMessagesButton } from "@/components/colis-messages-button";
 import { ModalPortal } from "@/components/modal-portal";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { STATUTS, COMMUNES } from "@/lib/tarifs";
+import { STATUT_GROUP_BG, STATUT_GROUP_TEXT } from "@/lib/board-shared";
 import { exportColisToXLSX } from "@/lib/export-csv";
 import { KpiChip } from "@/components/kpi-chip";
 import { NewBadge } from "@/components/new-badge";
@@ -63,6 +64,9 @@ function MesColisPage() {
   const [statutFilter, setStatutFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [communeFilter, setCommuneFilter] = useState<string>("all");
+  // Filtre rapide piloté par les cartes KPI au-dessus de la liste (même comportement que sur
+  // le board admin, où elles étaient déjà cliquables — ici elles ne faisaient rien).
+  const [quickFilter, setQuickFilter] = useState<"aTraiter" | "enCours" | "livres" | "problemes" | null>(null);
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -125,10 +129,19 @@ function MesColisPage() {
     const fromTs = dateFrom ? new Date(dateFrom).getTime() : null;
     const toTs = dateTo ? new Date(dateTo).getTime() + 24 * 3600 * 1000 - 1 : null;
     return colis.filter((c) => {
+      if (quickFilter === "aTraiter" && c.statut !== "en-preparation") return false;
+      if (quickFilter === "enCours" && !STATUTS_EN_ROUTE.has(c.statut)) return false;
+      if (quickFilter === "livres" && c.statut !== "livre") return false;
+      if (quickFilter === "problemes"
+        && c.statut !== "echec-livraison" && c.statut !== "retourne-vendeur" && c.statut !== "annule") return false;
       if (statutFilter !== "all" && c.statut !== statutFilter) return false;
       if (typeFilter !== "all" && c.type_livraison !== typeFilter) return false;
       if (communeFilter !== "all") {
-        const m = communeFilter === c.destinataire_wilaya || communeFilter === c.depart;
+        // destinataire_commune porte la commune précise ; destinataire_wilaya ne contient que
+        // la wilaya (« Alger »). L'omettre faisait renvoyer 0 résultat sur une commune d'arrivée.
+        const m = communeFilter === c.destinataire_commune
+          || communeFilter === c.destinataire_wilaya
+          || communeFilter === c.depart;
         if (!m) return false;
       }
       if (fromTs !== null || toTs !== null) {
@@ -145,7 +158,7 @@ function MesColisPage() {
         c.destinataire_tel?.toLowerCase().includes(q)
       );
     });
-  }, [colis, query, statutFilter, typeFilter, communeFilter, dateFrom, dateTo]);
+  }, [colis, query, statutFilter, typeFilter, communeFilter, dateFrom, dateTo, quickFilter]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -177,7 +190,7 @@ function MesColisPage() {
     return sorted.slice(start, start + pageSize);
   }, [sorted, safePage, pageSize]);
 
-  useEffect(() => { setPage(1); }, [query, statutFilter, typeFilter, communeFilter, dateFrom, dateTo, pageSize]);
+  useEffect(() => { setPage(1); }, [query, statutFilter, typeFilter, communeFilter, dateFrom, dateTo, pageSize, quickFilter]);
 
   const allSelected = pageRows.length > 0 && pageRows.every((c) => selected.has(c.id));
   const someSelected = pageRows.some((c) => selected.has(c.id));
@@ -261,6 +274,15 @@ function MesColisPage() {
     return m;
   }, [colis]);
 
+  // Mêmes puces colorées par statut que sur les écrans admin — le client ne les avait pas.
+  // Ici elles filtrent réellement la liste (via statutFilter) plutôt que de replier un groupe.
+  const groupesStatut = useMemo(() => {
+    return STATUTS.map((s) => {
+      const rows = colis.filter((c) => c.statut === s.key);
+      return { key: s.key, nb: rows.length, total: rows.reduce((sum, c) => sum + Number(c.prix_colis ?? 0), 0) };
+    }).filter((g) => g.nb > 0);
+  }, [colis]);
+
   const kpis = useMemo(() => ({
     total: colis.length,
     aTraiter: colis.filter((c) => c.statut === "en-preparation").length,
@@ -271,12 +293,12 @@ function MesColisPage() {
 
   const resetFilters = () => {
     setQuery(""); setStatutFilter("all"); setTypeFilter("all");
-    setCommuneFilter("all"); setDateFrom(""); setDateTo("");
+    setCommuneFilter("all"); setDateFrom(""); setDateTo(""); setQuickFilter(null);
   };
 
   const hasActiveFilters =
     query !== "" || statutFilter !== "all" || typeFilter !== "all" ||
-    communeFilter !== "all" || dateFrom !== "" || dateTo !== "";
+    communeFilter !== "all" || dateFrom !== "" || dateTo !== "" || !!quickFilter;
 
   const advancedFilterCount =
     (statutFilter !== "all" ? 1 : 0) + (typeFilter !== "all" ? 1 : 0) +
@@ -375,12 +397,36 @@ function MesColisPage() {
         )}
 
         <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
-          <KpiChip icon={Boxes} label={t("adm.kpi.total")} value={kpis.total} tone="primary" />
-          <KpiChip icon={Clock3} label={t("adm.kpi.aTraiter")} value={kpis.aTraiter} tone="warning" />
-          <KpiChip icon={Truck} label={t("adm.kpi.enCours")} value={kpis.enCours} tone="primary" />
-          <KpiChip icon={CheckCircle2} label={t("adm.kpi.livres")} value={kpis.livres} tone="success" />
-          <KpiChip icon={XOctagon} label={t("adm.kpi.problemes")} value={kpis.problemes} tone="destructive" />
+          <KpiChip icon={Boxes} label={t("adm.kpi.total")} value={kpis.total} tone="primary"
+            onClick={() => setQuickFilter(null)} active={!quickFilter} />
+          <KpiChip icon={Clock3} label={t("adm.kpi.aTraiter")} value={kpis.aTraiter} tone="warning"
+            onClick={() => setQuickFilter(quickFilter === "aTraiter" ? null : "aTraiter")} active={quickFilter === "aTraiter"} />
+          <KpiChip icon={Truck} label={t("adm.kpi.enCours")} value={kpis.enCours} tone="primary"
+            onClick={() => setQuickFilter(quickFilter === "enCours" ? null : "enCours")} active={quickFilter === "enCours"} />
+          <KpiChip icon={CheckCircle2} label={t("adm.kpi.livres")} value={kpis.livres} tone="success"
+            onClick={() => setQuickFilter(quickFilter === "livres" ? null : "livres")} active={quickFilter === "livres"} />
+          <KpiChip icon={XOctagon} label={t("adm.kpi.problemes")} value={kpis.problemes} tone="destructive"
+            onClick={() => setQuickFilter(quickFilter === "problemes" ? null : "problemes")} active={quickFilter === "problemes"} />
         </div>
+
+        {groupesStatut.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {groupesStatut.map((g) => {
+              const actif = statutFilter === g.key;
+              return (
+                <button
+                  key={g.key}
+                  onClick={() => { setStatutFilter(actif ? "all" : g.key); setQuickFilter(null); }}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-all hover:opacity-80 ${STATUT_GROUP_BG[g.key]} ${STATUT_GROUP_TEXT[g.key]} ${actif ? "ring-2 ring-primary ring-offset-1" : ""}`}
+                >
+                  {statutLabel(g.key, t)}
+                  <span className="rounded-full bg-white/70 px-1.5 py-0.5 text-[10px] dark:bg-black/20">{g.nb}</span>
+                  <Ltr className="opacity-70">{g.total.toLocaleString("fr-FR")} DA</Ltr>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
           <div className="relative min-w-[200px] flex-1">

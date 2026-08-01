@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ChevronDown, Package, Search, UserCircle2, UserX, Pencil, Trash2, Loader2, Filter as FilterIcon, Copy,
-  Plus, Printer, SlidersHorizontal, Download, Truck, X, Boxes, Clock3, CheckCircle2, XOctagon,
+  Plus, Printer, SlidersHorizontal, Download, Truck, X, Boxes, Clock3, CheckCircle2, XOctagon, Store,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -151,7 +151,13 @@ export function ColisBoard({
       if (quickFilter === "livres" && c.statut !== "livre") return false;
       if (quickFilter === "problemes" && !STATUTS_PROBLEME.has(c.statut)) return false;
       if (typeFilter !== "all" && c.type_livraison !== typeFilter) return false;
-      if (communeFilter !== "all" && communeFilter !== c.destinataire_wilaya && communeFilter !== c.depart) return false;
+      // destinataire_commune porte la commune précise (« Bach Djerrah ») ; destinataire_wilaya
+      // ne contient que la wilaya (« Alger ») pour la quasi-totalité des colis. L'omettre ici
+      // faisait renvoyer 0 résultat dès qu'on filtrait sur une commune d'arrivée.
+      if (communeFilter !== "all"
+        && communeFilter !== c.destinataire_commune
+        && communeFilter !== c.destinataire_wilaya
+        && communeFilter !== c.depart) return false;
       if (boutiqueFilter !== "all" && c.client_id !== boutiqueFilter) return false;
       if (fromTs !== null || toTs !== null) {
         const ts = new Date(c.date_creation).getTime();
@@ -369,6 +375,28 @@ export function ColisBoard({
             className="h-10 w-full rounded-full border border-border bg-background ps-9 pe-4 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30"
           />
         </div>
+
+        {/* Filtrer par client/boutique est l'un des gestes les plus fréquents côté staff :
+            il était enterré dans « Filtres avancés ». Sorti ici dès qu'il y a plusieurs
+            boutiques à départager (inutile sur la fiche d'une boutique unique). */}
+        {boutiques.length > 1 && (
+          <Select value={boutiqueFilter} onValueChange={setBoutiqueFilter}>
+            <SelectTrigger
+              className={`h-10 w-[190px] rounded-full text-sm ${boutiqueFilter !== "all" ? "border-primary text-primary" : ""}`}
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <Store className="h-4 w-4 shrink-0 opacity-70" />
+                <SelectValue />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="max-h-[320px]">
+              <SelectItem value="all">{t("adm.filter.allBoutiques")}</SelectItem>
+              {boutiques.map((b) => (
+                <SelectItem key={b.id} value={b.id}>{b.nom}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         <Popover>
           <PopoverTrigger asChild>
@@ -604,7 +632,10 @@ export function ColisBoard({
                           <DropdownMenuTrigger asChild>
                             <button
                               type="button"
-                              className="inline-flex h-8 items-center gap-2 rounded-full border border-dashed border-border bg-background px-3 text-xs font-medium text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                              /* justify-self-start sur mobile : en CSS Grid un item s'étire par défaut
+                                 (justify-self: stretch), même en inline-flex — la pastille occupait
+                                 donc 83% de la largeur de l'écran sur téléphone. */
+                              className="inline-flex h-8 w-fit items-center gap-2 justify-self-start rounded-full border border-dashed border-border bg-background px-3 text-xs font-medium text-muted-foreground hover:border-primary/50 hover:text-foreground md:w-auto md:justify-self-auto"
                             >
                               <UserCircle2 className="h-3.5 w-3.5 shrink-0" />
                               <span className="max-w-[130px] flex-1 truncate text-start">{livreurName(c.livreur_id) ?? t("adm.assign")}</span>
@@ -639,7 +670,7 @@ export function ColisBoard({
                             <button
                               type="button"
                               onClick={() => openPriceEdit(c)}
-                              className="flex items-center justify-end gap-1 text-end font-bold hover:text-primary hover:underline"
+                              className="flex items-center justify-start gap-1 justify-self-start text-start font-bold hover:text-primary hover:underline md:justify-end md:justify-self-auto md:text-end"
                               title={t("adm.price.edit")}
                             >
                               <Ltr>{c.prix_colis} DA</Ltr>
@@ -662,9 +693,9 @@ export function ColisBoard({
                           </PopoverContent>
                         </Popover>
                       ) : (
-                        <Ltr className="block text-end font-bold">{c.prix_colis} DA</Ltr>
+                        <Ltr className="block text-start font-bold md:text-end">{c.prix_colis} DA</Ltr>
                       )}
-                      <div className="flex justify-end gap-1">
+                      <div className="flex flex-wrap justify-start gap-1 md:flex-nowrap md:justify-end">
                         <ColisStatusPill statut={c.statut} paid={!!c.reversement_id} onClick={() => setHistoColis(c)} />
                         <TrackingActions colis={c} hidePrint />
                         {(

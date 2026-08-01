@@ -277,9 +277,16 @@ export const validerImport = createServerFn({ method: "POST" })
       .from("profiles").select("adresse, ramassage_commune, wilaya").eq("id", context.userId).single();
     const depart = matchCommuneAlger(prof?.ramassage_commune || prof?.wilaya || "");
     if (!prof?.adresse || !depart) {
+      // Ce cas n'a rien à voir avec le contenu du fichier : le signaler comme une "erreur de
+      // ligne" faisait afficher « corrigez le fichier », ce qui envoie l'utilisateur chercher
+      // un problème inexistant dans son Excel.
       return {
-        total: data.rows.length, valides: 0,
-        erreurs: [{ ligne: 0, message: "Votre profil est incomplet (adresse ou commune de départ manquante) — complétez-le avant d'importer." }],
+        total: data.rows.length, valides: 0, erreurs: [],
+        profilIncomplet: true,
+        manque: {
+          adresse: !prof?.adresse,
+          commune: !depart,
+        },
       };
     }
 
@@ -290,7 +297,7 @@ export const validerImport = createServerFn({ method: "POST" })
       if (res.ok) valides++;
       else erreurs.push({ ligne: i + 2, message: res.message });
     });
-    return { total: data.rows.length, valides, erreurs };
+    return { total: data.rows.length, valides, erreurs, profilIncomplet: false as const };
   });
 
 // Crée les colis après validation
@@ -339,7 +346,12 @@ export const executerImport = createServerFn({ method: "POST" })
         destinataire_nom: d.destinataire_nom,
         destinataire_tel: d.destinataire_tel,
         destinataire_adresse: d.destinataire_adresse,
-        destinataire_wilaya: d.commune,
+        // Aligné sur le formulaire /commander : la wilaya reste « Alger » (seule zone couverte)
+        // et la commune précise va dans destinataire_commune. L'import écrivait auparavant la
+        // commune dans destinataire_wilaya en laissant destinataire_commune vide — les colis
+        // importés n'affichaient donc pas leur commune et échappaient au filtre par commune.
+        destinataire_wilaya: "Alger",
+        destinataire_commune: d.commune,
         distance_km: km,
         prix,
         prix_colis: d.prix_colis,

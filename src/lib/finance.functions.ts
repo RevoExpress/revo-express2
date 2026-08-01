@@ -34,13 +34,15 @@ export const getMesColisEnAttente = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { data } = await supabaseAdmin
       .from("colis")
-      .select("id, tracking, destinataire_nom, prix_colis, prix, frais_payes_par_expediteur, date_creation")
+      .select("id, tracking, type_colis, destinataire_nom, prix_colis, prix, frais_payes_par_expediteur, date_creation")
       .eq("client_id", context.userId)
       .eq("statut", "livre")
       .eq("cod_encaisse", true)
       .is("reversement_id", null)
       .eq("archive", false)
-      .eq("type_colis", "REV")
+      // Pas de filtre sur type_colis : l'argent encaissé sur un colis SPLIT ou ÉCHANGE
+      // appartient au commerçant au même titre qu'un colis classique. Le restreindre à "REV"
+      // rendait ces montants invisibles et jamais reversés.
       .order("date_creation", { ascending: false });
     return { colis: data ?? [] };
   });
@@ -223,11 +225,12 @@ export const listColisLivresNonEncaisses = createServerFn({ method: "POST" })
 
     const { data } = await supabaseAdmin
       .from("colis")
-      .select("id, tracking, client_id, destinataire_nom, prix_colis, prix, date_creation")
+      .select("id, tracking, type_colis, client_id, destinataire_nom, prix_colis, prix, date_creation")
       .eq("statut", "livre")
       .or("cod_encaisse.is.null,cod_encaisse.eq.false")
       .eq("archive", false)
-      .eq("type_colis", "REV")
+      // Même raison que dans getMesColisEnAttente : un colis SPLIT/ÉCHANGE livré doit pouvoir
+      // être marqué encaissé, sinon son montant n'entre jamais dans le circuit de reversement.
       .order("date_creation", { ascending: false })
       .limit(200);
     if (!data?.length) return { colis: [] };
